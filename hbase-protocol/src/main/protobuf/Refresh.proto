@@ -1,0 +1,20 @@
+option java_package = "org.apache.hadoop.hbase.protobuf.generated";
+option java_outer_classname = "RefreshProtos";
+option java_generic_services = true;
+option java_generate_equals_and_hash = true;
+option optimize_for = SPEED;
+
+message GetUserGroupsRequest { 
+  required string user = 1;
+}
+message GetUserGroupsResponse {
+  repeated string groups = 1;
+}
+
+message RefreshUserToGroupsMappingsRequest { }
+message RefreshUserToGroupsMappingsResponse { }
+
+service RefreshService {
+  rpc getUserGroups(GetUserGroupsRequest) returns(GetUserGroupsResponse);
+  rpc refreshUserToGroupsMappings(RefreshUserToGroupsMappingsRequest) returns(RefreshUserToGroupsMappingsResponse);
+}
