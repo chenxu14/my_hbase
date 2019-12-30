@@ -1783,9 +1783,7 @@ public class HRegionServer extends HasThread implements
       conf.getInt("hbase.log.replay.rpc.timeout", 30000)); // default 30 seconds
     sinkConf.setInt("hbase.client.serverside.retries.multiplier", 1);
     this.splitLogWorker = new SplitLogWorker(this, sinkConf, this, this, walFactory);
-    if (!(this instanceof HMaster)) {
-      splitLogWorker.start();
-    }
+    splitLogWorker.start();
   }
 
   /**

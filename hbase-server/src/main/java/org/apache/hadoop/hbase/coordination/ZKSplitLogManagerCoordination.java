@@ -24,11 +24,15 @@ import static org.apache.hadoop.hbase.master.LogRecoveryManager.TerminationStatu
 import static org.apache.hadoop.hbase.master.LogRecoveryManager.TerminationStatus.FAILURE;
 import static org.apache.hadoop.hbase.master.LogRecoveryManager.TerminationStatus.IN_PROGRESS;
 import static org.apache.hadoop.hbase.master.LogRecoveryManager.TerminationStatus.SUCCESS;
+
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
@@ -43,6 +47,7 @@ import org.apache.hadoop.hbase.Server;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.SplitLogCounters;
 import org.apache.hadoop.hbase.SplitLogTask;
+import org.apache.hadoop.hbase.SplitLogTask.Type;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.coordination.ZKSplitLogManagerCoordination.TaskFinisher.Status;
 import org.apache.hadoop.hbase.exceptions.DeserializationException;
@@ -91,9 +96,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
   private long zkretries;
   private long resubmitThreshold;
   private long timeout;
-  private TaskFinisher taskFinisher;
-
-  SplitLogManagerDetails details;
+  private Map<Type, TaskFinisher> taskFinishers;
+  private Map<Type, SplitLogManagerDetails> details;
 
   // When lastRecoveringNodeCreationTime is older than the following threshold, we'll check
   // whether to GC stale recovering znodes
@@ -110,6 +114,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
     super(watcher);
     this.server = manager.getServer();
     this.conf = server.getConfiguration();
+    this.taskFinishers = new HashMap<>();
+    this.details = new HashMap<>();
   }
 
   @Override
@@ -125,8 +131,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
   }
 
   @Override
-  public void setTaskFinisher(TaskFinisher taskFinisher) {
-    this.taskFinisher = taskFinisher;
+  public void addTaskFinisher(TaskFinisher taskFinisher) {
+    this.taskFinishers.put(taskFinisher.getTaskType(), taskFinisher);
   }
 
   @Override
@@ -182,6 +188,7 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
   @Override
   public boolean resubmitTask(String path, Task task, ResubmitDirective directive) {
     // its ok if this thread misses the update to task.deleted. It will fail later
+    Type taskType = SplitLogTask.getTaskType(path);
     if (task.status != IN_PROGRESS) {
       return false;
     }
@@ -193,9 +200,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
       // finished the task. This allows to continue if the worker cannot actually handle it,
       // for any reason.
       final long time = EnvironmentEdgeManager.currentTime() - task.last_update;
-      final boolean alive =
-          details.getMaster().getServerManager() != null ? details.getMaster().getServerManager()
-              .isServerOnline(task.cur_worker_name) : true;
+      final boolean alive = details.get(taskType).getMaster().getServerManager() != null ?
+          details.get(taskType).getMaster().getServerManager().isServerOnline(task.cur_worker_name) : true;
       if (alive && time < timeout) {
         LOG.trace("Skipping the resubmit of " + task.toString() + "  because the server "
             + task.cur_worker_name + " is not marked as dead, we waited for " + time
@@ -220,7 +226,7 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
     }
     LOG.info("resubmitting task " + path);
     task.incarnation.incrementAndGet();
-    boolean result = resubmit(this.details.getServerName(), path, version);
+    boolean result = resubmit(this.details.get(taskType).getServerName(), path, version);
     if (!result) {
       task.heartbeatNoDetails(EnvironmentEdgeManager.currentTime());
       return false;
@@ -252,7 +258,7 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
     // might miss the watch-trigger that creation of RESCAN node provides.
     // Since the TimeoutMonitor will keep resubmitting UNASSIGNED tasks
     // therefore this behavior is safe.
-    SplitLogTask slt = new SplitLogTask.Done(this.details.getServerName(), getRecoveryMode());
+    SplitLogTask slt = new SplitLogTask.Done(this.details.get(Type.HDFS).getServerName(), getRecoveryMode());
     this.watcher
         .getRecoverableZooKeeper()
         .getZooKeeper()
@@ -289,8 +295,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
     if (ignoreZKDeleteForTesting) {
       return;
     }
-    Task task;
-    task = details.getTasks().remove(path);
+    Type taskType = SplitLogTask.getTaskType(path);
+    Task task = details.get(taskType).getTasks().remove(path);
     if (task == null) {
       if (ZKSplitLog.isRescanNode(watcher, path)) {
         SplitLogCounters.tot_mgr_rescan_deleted.incrementAndGet();
@@ -336,7 +342,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
   }
 
   private void createNode(String path, Long retry_count) {
-    SplitLogTask slt = new SplitLogTask.Unassigned(details.getServerName(), getRecoveryMode());
+    Type taskType = SplitLogTask.getTaskType(path);
+    SplitLogTask slt = new SplitLogTask.Unassigned(details.get(taskType).getServerName(), getRecoveryMode());
     ZKUtil.asyncCreate(this.watcher, path, slt.toByteArray(), new CreateAsyncCallback(),
       retry_count);
     SplitLogCounters.tot_mgr_node_create_queued.incrementAndGet();
@@ -385,7 +392,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
       LOG.info("task " + path + " entered state: " + slt.toString());
       resubmitOrFail(path, FORCE);
     } else if (slt.isDone()) {
-      LOG.info("task " + path + " entered state: " + slt.toString());
+      TaskFinisher taskFinisher = taskFinishers.get(SplitLogTask.getTaskType(path));
+      LOG.info("task " + path + " entered state: " + slt.toString() + ", task type is : " + taskFinisher.getTaskType());
       if (taskFinisher != null && !ZKSplitLog.isRescanNode(watcher, path)) {
         if (taskFinisher.finish(slt.getServerName(), ZKSplitLog.getFileName(path)) == Status.DONE) {
           setDone(path, SUCCESS);
@@ -417,7 +425,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
   }
 
   private void setDone(String path, TerminationStatus status) {
-    Task task = details.getTasks().get(path);
+    Type taskType = SplitLogTask.getTaskType(path);
+    Task task = details.get(taskType).getTasks().get(path);
     if (task == null) {
       if (!ZKSplitLog.isRescanNode(watcher, path)) {
         SplitLogCounters.tot_mgr_unacquired_orphan_done.incrementAndGet();
@@ -458,8 +467,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
 
   Task findOrCreateOrphanTask(String path) {
     Task orphanTask = new Task();
-    Task task;
-    task = details.getTasks().putIfAbsent(path, orphanTask);
+    Type taskType = SplitLogTask.getTaskType(path);
+    Task task = details.get(taskType).getTasks().putIfAbsent(path, orphanTask);
     if (task == null) {
       LOG.info("creating orphan task " + path);
       SplitLogCounters.tot_mgr_orphan_task_acquired.incrementAndGet();
@@ -534,7 +543,7 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
         long lastRecordedFlushedSequenceId = -1;
         try {
           long lastSequenceId =
-              this.details.getMaster().getServerManager()
+              this.details.get(Type.HDFS).getMaster().getServerManager()
                   .getLastFlushedSequenceId(regionEncodeName.getBytes()).getLastFlushedSequenceId();
 
           /*
@@ -587,8 +596,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
 
   @Override
   public void nodeDataChanged(String path) {
-    Task task;
-    task = details.getTasks().get(path);
+    Type taskType = SplitLogTask.getTaskType(path);
+    Task task = details.get(taskType).getTasks().get(path);
     if (task != null || ZKSplitLog.isRescanNode(watcher, path)) {
       if (task != null) {
         task.heartbeatNoDetails(EnvironmentEdgeManager.currentTime());
@@ -800,8 +809,9 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
   private boolean resubmit(ServerName serverName, String path, int version) {
     try {
       // blocking zk call but this is done from the timeout thread
+      Type taskType = SplitLogTask.getTaskType(path);
       SplitLogTask slt =
-          new SplitLogTask.Unassigned(this.details.getServerName(), getRecoveryMode());
+          new SplitLogTask.Unassigned(this.details.get(taskType).getServerName(), getRecoveryMode());
       if (ZKUtil.setData(this.watcher, path, slt.toByteArray(), version) == false) {
         LOG.debug("failed to resubmit task " + path + " version changed");
         return false;
@@ -860,6 +870,8 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
      * @return DONE if task completed successfully, ERR otherwise
      */
     Status finish(ServerName workerName, String taskname);
+
+    Type getTaskType();
   }
 
   /**
@@ -960,9 +972,10 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
     @Override
     public void processResult(int rc, String path, Object ctx) {
       SplitLogCounters.tot_mgr_node_delete_result.incrementAndGet();
+      Type taskType = SplitLogTask.getTaskType(path);
       if (rc != 0) {
         if (needAbandonRetries(rc, "Delete znode " + path)) {
-          details.getFailedDeletions().add(path);
+          details.get(taskType).getFailedDeletions().add(path);
           return;
         }
         if (rc != KeeperException.Code.NONODE.intValue()) {
@@ -972,7 +985,7 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
               + " remaining retries=" + retry_count);
           if (retry_count == 0) {
             LOG.warn("delete failed " + path);
-            details.getFailedDeletions().add(path);
+            details.get(taskType).getFailedDeletions().add(path);
             deleteNodeFailure(path);
           } else {
             deleteNode(path, retry_count - 1);
@@ -1021,13 +1034,13 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
   }
 
   @Override
-  public void setDetails(SplitLogManagerDetails details) {
-    this.details = details;
+  public void addDetails(Type type, SplitLogManagerDetails details) {
+    this.details.put(type, details);
   }
 
   @Override
-  public SplitLogManagerDetails getDetails() {
-    return details;
+  public Collection<SplitLogManagerDetails> getDetails() {
+    return details.values();
   }
 
   @Override

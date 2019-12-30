@@ -90,12 +90,13 @@ public class ZkSplitLogWorkerCoordination extends ZooKeeperListener implements
   private int maxConcurrentTasks = 0;
 
   private final ZkCoordinatedStateManager manager;
+  private final boolean isOnMaster;
 
   public ZkSplitLogWorkerCoordination(ZkCoordinatedStateManager zkCoordinatedStateManager,
-      ZooKeeperWatcher watcher) {
+      ZooKeeperWatcher watcher, boolean isOnMaster) {
     super(watcher);
     manager = zkCoordinatedStateManager;
-
+    this.isOnMaster = isOnMaster;
   }
 
   /**
@@ -428,11 +429,18 @@ public class ZkSplitLogWorkerCoordination extends ZooKeeperListener implements
         int idx = (i + offset) % paths.size();
         // don't call ZKSplitLog.getNodeName() because that will lead to
         // double encoding of the path name
-        if (this.calculateAvailableSplitters(numTasks) > 0) {
-          grabTask(ZKUtil.joinZNode(watcher.splitLogZNode, paths.get(idx)));
+        String taskName = paths.get(idx);
+        boolean isNotKafka = SplitLogTask.getTaskType(taskName) != SplitLogTask.Type.KAFKA;
+        boolean skipTask = isOnMaster ^ isNotKafka;
+        if (!skipTask && this.calculateAvailableSplitters(numTasks) > 0) {
+          grabTask(ZKUtil.joinZNode(watcher.splitLogZNode, taskName));
         } else {
-          LOG.debug("Current region server " + server.getServerName() + " has "
-              + this.tasksInProgress.get() + " tasks in progress and can't take more.");
+          if (skipTask) {
+            LOG.info("task " + taskName + " was skipped.");
+          } else {
+            LOG.debug("Current region server " + server.getServerName() + " has "
+                + this.tasksInProgress.get() + " tasks in progress and can't take more.");
+          }
           break;
         }
         if (shouldStop) {
