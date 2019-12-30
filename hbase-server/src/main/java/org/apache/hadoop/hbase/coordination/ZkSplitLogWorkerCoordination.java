@@ -88,12 +88,13 @@ public class ZkSplitLogWorkerCoordination extends ZooKeeperListener implements
   private int maxConcurrentTasks = 0;
 
   private final ZkCoordinatedStateManager manager;
+  private final boolean isHdfsWorker;
 
   public ZkSplitLogWorkerCoordination(ZkCoordinatedStateManager zkCoordinatedStateManager,
-      ZooKeeperWatcher watcher) {
+      ZooKeeperWatcher watcher, boolean isHdfsWorker) {
     super(watcher);
     manager = zkCoordinatedStateManager;
-
+    this.isHdfsWorker = isHdfsWorker;
   }
 
   /**
@@ -404,16 +405,19 @@ public class ZkSplitLogWorkerCoordination extends ZooKeeperListener implements
       int numTasks = tasks.size();
       boolean taskGrabbed = false;
       for (int i = 0; i < numTasks; i++) {
-        while (!shouldStop) {
+        int idx = (i + offset) % tasks.size();
+        String taskName = tasks.get(idx);
+        boolean isNotKafka = SplitLogTask.getTaskType(taskName) != SplitLogTask.Type.KAFKA;
+        boolean skipTask = isHdfsWorker ^ isNotKafka;
+        while (!shouldStop && !skipTask) {
           if (this.areSplittersAvailable()) {
             if (LOG.isTraceEnabled()) {
               LOG.trace("Current region server " + server.getServerName()
                 + " is ready to take more tasks, will get task list and try grab tasks again.");
             }
-            int idx = (i + offset) % tasks.size();
             // don't call ZKSplitLog.getNodeName() because that will lead to
             // double encoding of the path name
-            taskGrabbed |= grabTask(ZKUtil.joinZNode(watcher.splitLogZNode, tasks.get(idx)));
+            taskGrabbed |= grabTask(ZKUtil.joinZNode(watcher.splitLogZNode, taskName));
             break;
           } else {
             if (LOG.isTraceEnabled()) {

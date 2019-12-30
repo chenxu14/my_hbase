@@ -21,11 +21,13 @@ package org.apache.hadoop.hbase.coordination;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.ServerName;
+import org.apache.hadoop.hbase.SplitLogTask;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.coordination.ZKSplitLogManagerCoordination.TaskFinisher;
 import org.apache.hadoop.hbase.master.LogRecoveryManager.ResubmitDirective;
@@ -104,12 +106,12 @@ public interface SplitLogManagerCoordination {
   /**
    * Provide the configuration from the SplitLogManager
    */
-  void setDetails(SplitLogManagerDetails details);
+  void addDetails(SplitLogTask.Type type, SplitLogManagerDetails details);
 
   /**
    * Returns the configuration that was provided previously
    */
-  SplitLogManagerDetails getDetails();
+  Collection<SplitLogManagerDetails> getDetails();
 
   /**
    * Prepare the new task
@@ -210,5 +212,5 @@ public interface SplitLogManagerCoordination {
   @VisibleForTesting
   void init() throws IOException;
 
-  public void setTaskFinisher(TaskFinisher taskFinisher);
+  public void addTaskFinisher(TaskFinisher taskFinisher);
 }

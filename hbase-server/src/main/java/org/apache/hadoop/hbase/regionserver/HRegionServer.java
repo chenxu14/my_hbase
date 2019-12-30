@@ -1836,9 +1836,7 @@ public class HRegionServer extends HasThread implements
     } else {
       this.splitLogWorker = new HdfsSplitLogWorker(this, sinkConf, this, this, walFactory);
     }
-    if (!(this instanceof HMaster)) {
-      splitLogWorker.start();
-    }
+    splitLogWorker.start();
   }
 
   /**

@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.logging.Log;
@@ -39,6 +38,7 @@ import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.Server;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.SplitLogCounters;
+import org.apache.hadoop.hbase.SplitLogTask;
 import org.apache.hadoop.hbase.Stoppable;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.coordination.BaseCoordinatedStateManager;
@@ -104,7 +104,7 @@ public class SplitLogManager extends LogRecoveryManager {
    */
   public SplitLogManager(Server server, Configuration conf, Stoppable stopper,
       MasterServices master, ServerName serverName) throws IOException {
-    super(server, conf, stopper, master, serverName);
+    super(server, conf, stopper, master, serverName, true);
   }
 
   @Override
@@ -119,6 +119,11 @@ public class SplitLogManager extends LogRecoveryManager {
           return Status.ERR;
         }
         return Status.DONE;
+      }
+
+      @Override
+      public SplitLogTask.Type getTaskType() {
+        return SplitLogTask.Type.HDFS;
       }
     };
   }

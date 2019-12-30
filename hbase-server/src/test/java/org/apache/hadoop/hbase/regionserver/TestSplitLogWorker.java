@@ -35,7 +35,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.ChoreService;
 import org.apache.hadoop.hbase.CoordinatedStateManager;
 import org.apache.hadoop.hbase.CoordinatedStateManagerFactory;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.Server;
@@ -272,10 +271,8 @@ public abstract class TestSplitLogWorker {
         Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     RegionServerServices mockedRS1 = getRegionServer(SVR1);
     RegionServerServices mockedRS2 = getRegionServer(SVR2);
-    SplitLogWorker slw1 =
-        new KafkaSplitLogWorker(ds, TEST_UTIL.getConfiguration(), mockedRS1, neverEndingTask);
-    SplitLogWorker slw2 =
-        new KafkaSplitLogWorker(ds, TEST_UTIL.getConfiguration(), mockedRS2, neverEndingTask);
+    SplitLogWorker slw1 = this.getSplitLogWorker(mockedRS1);
+    SplitLogWorker slw2 = this.getSplitLogWorker(mockedRS2);
     slw1.start();
     slw2.start();
     try {
@@ -301,8 +298,7 @@ public abstract class TestSplitLogWorker {
     final ServerName SRV = ServerName.valueOf("tpt_svr,1,1");
     final String PATH = ZKSplitLog.getEncodedNodeName(zkw, "tpt_task");
     RegionServerServices mockedRS = getRegionServer(SRV);
-    SplitLogWorker slw =
-        new KafkaSplitLogWorker(ds, TEST_UTIL.getConfiguration(), mockedRS, neverEndingTask);
+    SplitLogWorker slw = getSplitLogWorker(mockedRS);
     slw.start();
     try {
       Thread.yield(); // let the worker start
@@ -334,8 +330,7 @@ public abstract class TestSplitLogWorker {
     final ServerName SRV = ServerName.valueOf("tmt_svr,1,1");
     final String PATH1 = ZKSplitLog.getEncodedNodeName(zkw, "tmt_task");
     RegionServerServices mockedRS = getRegionServer(SRV);
-    SplitLogWorker slw =
-        new KafkaSplitLogWorker(ds, TEST_UTIL.getConfiguration(), mockedRS, neverEndingTask);
+    SplitLogWorker slw = this.getSplitLogWorker(mockedRS);
     slw.start();
     try {
       Thread.yield(); // let the worker start
@@ -377,7 +372,7 @@ public abstract class TestSplitLogWorker {
     SplitLogCounters.resetCounters();
     final ServerName SRV = ServerName.valueOf("svr,1,1");
     RegionServerServices mockedRS = getRegionServer(SRV);
-    slw = new KafkaSplitLogWorker(ds, TEST_UTIL.getConfiguration(), mockedRS, neverEndingTask);
+    slw = this.getSplitLogWorker(mockedRS);
     slw.start();
     Thread.yield(); // let the worker start
     Thread.sleep(100);
@@ -430,7 +425,7 @@ public abstract class TestSplitLogWorker {
     final String TATAS = "tatas";
     final ServerName RS = ServerName.valueOf("rs,1,1");
     final int maxTasks = 3;
-    Configuration testConf = HBaseConfiguration.create(TEST_UTIL.getConfiguration());
+    Configuration testConf = TEST_UTIL.getConfiguration();
     testConf.setInt("hbase.regionserver.wal.max.splitters", maxTasks);
     RegionServerServices mockedRS = getRegionServer(RS);
     for (int i = 0; i < maxTasks; i++) {
@@ -439,7 +434,7 @@ public abstract class TestSplitLogWorker {
           Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
-    SplitLogWorker slw = new KafkaSplitLogWorker(ds, testConf, mockedRS, neverEndingTask);
+    SplitLogWorker slw = this.getSplitLogWorker(mockedRS);
     slw.start();
     try {
       waitForCounter(SplitLogCounters.tot_wkr_task_acquired, 0, maxTasks, WAIT_TIME);

@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -181,7 +182,7 @@ public class TestCatalogJanitor {
       SplitLogManagerCoordination c = Mockito.mock(SplitLogManagerCoordination.class);
       Mockito.when(m.getSplitLogManagerCoordination()).thenReturn(c);
       SplitLogManagerDetails d = Mockito.mock(SplitLogManagerDetails.class);
-      Mockito.when(c.getDetails()).thenReturn(d);
+      Mockito.when(c.getDetails()).thenReturn(Collections.singleton(d));
       return m;
     }
 

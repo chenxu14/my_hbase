@@ -27,10 +27,12 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.Server;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.SplitLogCounters;
+import org.apache.hadoop.hbase.SplitLogTask;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.coordination.ZKSplitLogManagerCoordination.TaskFinisher;
 import org.apache.hadoop.hbase.monitoring.MonitoredTask;
@@ -40,7 +42,10 @@ import org.apache.hadoop.hbase.shaded.com.google.common.annotations.VisibleForTe
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.KafkaUtil;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 
@@ -53,15 +58,16 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
   public static final String RECOVERY_MODE = "KAFKA";
   private final String kafkaServers;
   private KafkaConsumer<byte[],byte[]> TEST_CONSUMER;
+  private AdminClient TEST_ADMIN;
   private final long regionFlushInterval;
 
   public KafkaRecoveryManager(HMaster master) throws IOException {
-    this(master, master);
+    this(master, master, false);
   }
 
   @VisibleForTesting
-  public KafkaRecoveryManager(Server server, MasterServices masterService) throws IOException {
-    super(server, server.getConfiguration(), server, masterService, server.getServerName());
+  public KafkaRecoveryManager(Server server, MasterServices masterService, boolean initCoordination) throws IOException {
+    super(server, server.getConfiguration(), server, masterService, server.getServerName(), initCoordination);
     this.kafkaServers = server.getConfiguration().get(KafkaUtil.KAFKA_BROKER_SERVERS);
     this.regionFlushInterval = server.getConfiguration().getLong(
         HRegion.MEMSTORE_PERIODIC_FLUSH_INTERVAL, HRegion.DEFAULT_CACHE_FLUSH_INTERVAL);
@@ -81,25 +87,36 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
     long t = EnvironmentEdgeManager.currentTime();
     TaskBatch batch = new TaskBatch();
 
-    try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer()) {
+    try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer();
+        AdminClient admin = getKafkaAdminClient()) {
       Map<String, Integer> tablePartitions = new HashMap<>();
       Map<TopicPartition, Long> lastOffsets = new HashMap<>();
+      int totalRecords = 0;
       for (HRegionInfo region : regions) {
         String table = region.getTable().getNameAsString();
         String kafkaTopic = KafkaUtil.getTableTopic(table);
+        String consumerGroup = KafkaUtil.getConsumerGroup(table);
         if (tablePartitions.get(table) == null) {
           tablePartitions.put(table, consumer.partitionsFor(kafkaTopic).size());
         }
         int kafkaPartition = KafkaUtil.getTablePartition(Bytes.toString(region.getStartKey()),
             tablePartitions.get(table));
         TopicPartition topicPartition = new TopicPartition(kafkaTopic, kafkaPartition);
-        consumer.assign(Arrays.asList(topicPartition));
         if (lastOffsets.get(topicPartition) == null) {
-          consumer.seekToEnd(Collections.singletonList(topicPartition));
-          lastOffsets.put(topicPartition, consumer.position(topicPartition));
+          long lastOffset = HConstants.NO_SEQNUM;
+          try {
+            lastOffset = getConsumerLastOffset(admin, topicPartition, consumerGroup);
+          } catch (Throwable e) {
+            LOG.warn("error occured when get consumer's last offset." , e);
+            // fall back to partition's last offset
+            consumer.assign(Arrays.asList(topicPartition));
+            consumer.seekToEnd(Collections.singletonList(topicPartition));
+            lastOffset = consumer.position(topicPartition) -1;
+          }
+          lastOffsets.put(topicPartition, lastOffset);
         }
         long startOffset = sm.getLastFlushedSequenceId(region.getEncodedNameAsBytes()).getLastFlushedSequenceId();
-        if (startOffset == -1) {
+        if (startOffset == HConstants.NO_SEQNUM) {
           long timestamp = System.currentTimeMillis() - regionFlushInterval;
           LOG.warn(region.getRegionName() + "'s target start offset is -1, seek with timestamp " + timestamp);
           OffsetAndTimestamp offset = consumer.offsetsForTimes(
@@ -109,6 +126,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
         String startKey = Bytes.toString(region.getStartKey());
         String endKey = Bytes.toString(region.getEndKey());
         // taskName like : topic_partition_startOffset_endOffset_regionName-startKey-endKey
+        totalRecords += (lastOffsets.get(topicPartition) - startOffset);
         StringBuilder taskName = new StringBuilder(kafkaTopic).append("_").append(kafkaPartition).append("_")
             .append(startOffset)
             .append("_").append(lastOffsets.get(topicPartition))
@@ -120,6 +138,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
         }
         LOG.info("enqueued split task : " + taskName);
       }
+      LOG.info("total replay kafka records : " + totalRecords);
     }
 
     waitForSplittingCompletion(batch, status);
@@ -140,11 +159,26 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
     LOG.info(msg);
   }
 
+  @VisibleForTesting
   void setKafkaConsumer(KafkaConsumer<byte[], byte[]> consumer) {
     this.TEST_CONSUMER = consumer;
   }
 
-  KafkaConsumer<byte[], byte[]> getKafkaConsumer() {
+  @VisibleForTesting
+  void setKafkaAdminClient(AdminClient adminClient) {
+    this.TEST_ADMIN = adminClient;
+  }
+
+  private AdminClient getKafkaAdminClient() {
+    if (TEST_ADMIN != null) {
+      return TEST_ADMIN;
+    }
+    Properties props = new Properties();
+    props.setProperty("bootstrap.servers", kafkaServers);
+    return AdminClient.create(props);
+  }
+
+  private KafkaConsumer<byte[], byte[]> getKafkaConsumer() {
     if (TEST_CONSUMER != null) {
       return TEST_CONSUMER;
     }
@@ -158,14 +192,28 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
     return consumer;
   }
 
+  private long getConsumerLastOffset(AdminClient client, TopicPartition partition, String group)
+      throws Exception {
+    ListConsumerGroupOffsetsOptions opts = new ListConsumerGroupOffsetsOptions()
+        .topicPartitions(Collections.singletonList(partition)).timeoutMs(10000);
+    Map<TopicPartition, OffsetAndMetadata> offsets = client.listConsumerGroupOffsets(group, opts)
+        .partitionsToOffsetAndMetadata().get();
+    return offsets.get(partition).offset();
+  }
+
   @Override
   protected TaskFinisher getTaskFinisher() {
     return new TaskFinisher() {
       @Override
       public Status finish(ServerName workerName, String taskName) {
         LOG.info("Log recovery Task has finished, taskName is : " + taskName);
-        // TODO do some cleanup
+        // do old WALs cleanup in ServerCrashProcedure
         return Status.DONE;
+      }
+
+      @Override
+      public SplitLogTask.Type getTaskType() {
+        return SplitLogTask.Type.KAFKA;
       }
     };
   }

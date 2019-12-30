@@ -348,7 +348,7 @@ public class ServerManager {
       if (existingValue == null || (l != HConstants.NO_SEQNUM && l > existingValue)) {
         flushedSequenceIdByRegion.put(encodedRegionName, l);
       } else if (l != HConstants.NO_SEQNUM && l < existingValue) {
-        LOG.warn("RegionServer " + sn + " indicates a last flushed sequence id ("
+        LOG.debug("RegionServer " + sn + " indicates a last flushed sequence id ("
             + l + ") that is less than the previous last flushed sequence id ("
             + existingValue + ") for region " + Bytes.toString(entry.getKey()) + " Ignoring.");
       }

@@ -62,7 +62,7 @@ public abstract class LogRecoveryManager {
   protected Server server;
   protected final Configuration conf;
   protected final Stoppable stopper;
-  protected final ChoreService choreService;
+  protected ChoreService choreService;
 
   protected final ConcurrentMap<String, Task> tasks = new ConcurrentHashMap<String, Task>();
   public static final int DEFAULT_UNASSIGNED_TIMEOUT = (3 * 60 * 1000); // 3 min
@@ -81,30 +81,37 @@ public abstract class LogRecoveryManager {
    * @param stopper the stoppable in case anything is wrong
    * @param master the master services
    * @param serverName the master server name
+   * @param initCoordination KafkaRecoverManager no need to init SplitLogManagerCoordination
    * @throws IOException
    */
   public LogRecoveryManager(Server server, Configuration conf, Stoppable stopper,
-      MasterServices master, ServerName serverName) throws IOException {
+      MasterServices master, ServerName serverName, boolean initCoordination) throws IOException {
     this.server = server;
     this.conf = conf;
     this.stopper = stopper;
-    this.choreService = new ChoreService(serverName.toString() + "_LogRecoveryManager_");
     if (server.getCoordinatedStateManager() != null) {
       SplitLogManagerCoordination coordination =
           ((BaseCoordinatedStateManager) server.getCoordinatedStateManager())
               .getSplitLogManagerCoordination();
       Set<String> failedDeletions = Collections.synchronizedSet(new HashSet<String>());
+      TaskFinisher taskFinisher = getTaskFinisher();
+      coordination.addTaskFinisher(taskFinisher);
       SplitLogManagerDetails details =
           new SplitLogManagerDetails(tasks, master, failedDeletions, serverName);
-      coordination.setDetails(details);
-      coordination.setTaskFinisher(getTaskFinisher());
-      coordination.init();
+      coordination.addDetails(taskFinisher.getTaskType(), details);
+      if (initCoordination) { // only SplitLogManager do this 
+        coordination.init();
+      }
     }
-    this.unassignedTimeout =
-        conf.getInt("hbase.splitlog.manager.unassigned.timeout", DEFAULT_UNASSIGNED_TIMEOUT);
-    this.timeoutMonitor =
-        new TimeoutMonitor(conf.getInt("hbase.splitlog.manager.timeoutmonitor.period", 1000), stopper);
-    choreService.scheduleChore(timeoutMonitor);
+    if (initCoordination) {
+      this.choreService = new ChoreService(serverName.toString() + "_LogRecoveryManager_");
+      this.unassignedTimeout =
+          conf.getInt("hbase.splitlog.manager.unassigned.timeout", DEFAULT_UNASSIGNED_TIMEOUT);
+      this.timeoutMonitor =
+          new TimeoutMonitor(conf.getInt("hbase.splitlog.manager.timeoutmonitor.period", 1000), stopper);
+      choreService.scheduleChore(timeoutMonitor);
+      LOG.info("TimeoutMonitor schedule echa " + unassignedTimeout);
+    }
   }
 
   protected abstract TaskFinisher getTaskFinisher();
@@ -176,7 +183,7 @@ public abstract class LogRecoveryManager {
               ((BaseCoordinatedStateManager) server.getCoordinatedStateManager())
                   .getSplitLogManagerCoordination().remainingTasksInCoordination();
           if (remainingTasks >= 0 && actual > remainingTasks) {
-            LOG.warn("Expected at least" + actual + " tasks remaining, but actually there are "
+            LOG.warn("Expected at least " + actual + " tasks remaining, but actually there are "
                 + remainingTasks);
           }
           if (remainingTasks == 0 || actual == 0) {
@@ -368,9 +375,11 @@ public abstract class LogRecoveryManager {
         SplitLogCounters.tot_mgr_resubmit_unassigned.incrementAndGet();
         LOG.debug("resubmitting unassigned task(s) after timeout");
       }
-      Set<String> failedDeletions =
-          ((BaseCoordinatedStateManager) server.getCoordinatedStateManager())
-              .getSplitLogManagerCoordination().getDetails().getFailedDeletions();
+      Set<String> failedDeletions = new HashSet<>();
+      for (SplitLogManagerDetails detail : ((BaseCoordinatedStateManager) server.getCoordinatedStateManager())
+          .getSplitLogManagerCoordination().getDetails()) {
+        failedDeletions.addAll(detail.getFailedDeletions());
+      }
       // Retry previously failed deletes
       if (failedDeletions.size() > 0) {
         List<String> tmpPaths = new ArrayList<String>(failedDeletions);

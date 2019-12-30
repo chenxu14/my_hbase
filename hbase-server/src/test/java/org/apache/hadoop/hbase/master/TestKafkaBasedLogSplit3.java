@@ -51,10 +51,15 @@ import org.apache.hadoop.hbase.util.Threads;
 import org.apache.hadoop.hbase.wal.KafkaWALSplitter;
 import org.apache.hadoop.hbase.wal.WALFactory;
 import org.apache.hadoop.hbase.zookeeper.ZKUtil;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
+import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.AfterClass;
@@ -75,6 +80,7 @@ public class TestKafkaBasedLogSplit3 {
   private static final byte[] FAMILYNAME = Bytes.toBytes("fam");
   private static final byte[] COLNAME = Bytes.toBytes("col");
 
+  @SuppressWarnings("unchecked")
   @BeforeClass
   public static void beforeAllTests() throws Exception {
     TEST_UTIL.getConfiguration().set(HConstants.LOG_RECOVERY_MODE, KafkaRecoveryManager.RECOVERY_MODE);
@@ -84,6 +90,27 @@ public class TestKafkaBasedLogSplit3 {
     Map<Integer, KafkaConsumer<byte[], byte[]>> consumers = new HashMap<>();
     consumers.put(Integer.valueOf(0), mockKafkaConsumer(0));
     consumers.put(Integer.valueOf(1), mockKafkaConsumer(1));
+    // mock AdminClient
+    AdminClient adminClient = Mockito.mock(AdminClient.class);
+    OffsetAndMetadata offset_0 = Mockito.mock(OffsetAndMetadata.class);
+    Mockito.when(offset_0.offset()).thenReturn(10L);
+    OffsetAndMetadata offset_1 = Mockito.mock(OffsetAndMetadata.class);
+    Mockito.when(offset_1.offset()).thenReturn(9L);
+    Map<TopicPartition, OffsetAndMetadata> offsets = Mockito.mock(HashMap.class);
+    Mockito.when(offsets.get(Mockito.any(TopicPartition.class))).then(new Answer<OffsetAndMetadata>() {
+      @Override
+      public OffsetAndMetadata answer(InvocationOnMock invocation) throws Throwable {
+        TopicPartition topicPartition = invocation.getArgumentAt(0, TopicPartition.class);
+        return topicPartition.partition() == 0 ? offset_0 : offset_1;
+      }
+    });
+    ListConsumerGroupOffsetsResult offsetsRes = Mockito.mock(ListConsumerGroupOffsetsResult.class);
+    KafkaFuture<Map<TopicPartition,OffsetAndMetadata>> future = Mockito.mock(KafkaFuture.class);
+    Mockito.when(future.get()).thenReturn(offsets);
+    Mockito.when(offsetsRes.partitionsToOffsetAndMetadata()).thenReturn(future);
+    Mockito.when(adminClient.listConsumerGroupOffsets(Mockito.anyString(),
+        Mockito.any(ListConsumerGroupOffsetsOptions.class))).thenReturn(offsetsRes);
+
     TEST_UTIL.startMiniCluster(1);// start master and one regionserver
     TEST_UTIL.getHBaseAdmin().setBalancerRunning(false, true); // turn off the balancer
     TEST_UTIL.getMiniHBaseCluster().abortRegionServer(0);
@@ -91,6 +118,7 @@ public class TestKafkaBasedLogSplit3 {
     TEST_UTIL.getMiniHBaseCluster().startRegionServer();
     KafkaRecoveryManager krm = TEST_UTIL.getHBaseCluster().getMaster().getKafkaRecoveryManager();
     krm.setKafkaConsumer(consumers.get(0));
+    krm.setKafkaAdminClient(adminClient);
     KafkaWALSplitter.setKafkaConsumer(consumers);
   }
 
@@ -107,7 +135,7 @@ public class TestKafkaBasedLogSplit3 {
       @Override
       public Long answer(InvocationOnMock invocation) throws Throwable {
         TopicPartition topicPartition = invocation.getArgumentAt(0, TopicPartition.class);
-        return topicPartition.partition() == 0 ? 10L : 9L;
+        return topicPartition.partition() == 0 ? 11L : 10L;
       }
     });
     Mockito.when(consumer.poll(Mockito.any(Duration.class))).thenReturn(mockKafkaRecords(partition));
@@ -128,7 +156,7 @@ public class TestKafkaBasedLogSplit3 {
     List<ConsumerRecord<byte[], byte[]>> recordsPerPartition = new ArrayList<>();
     if (partition == 0) {
       for (int i = 5; i < 11; i++) {
-        Put put = new Put(Bytes.toBytes("00_row" + String.format("%02d",i)));
+        Put put = new Put(Bytes.toBytes("0000_row" + String.format("%02d",i)));
         put.addColumn(FAMILYNAME, COLNAME, System.currentTimeMillis(), Bytes.toBytes("value" + String.format("%02d",i)));
         WALEdit walEdit = buildWALEdit(put);
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream((int)walEdit.heapSize())) {
@@ -139,7 +167,7 @@ public class TestKafkaBasedLogSplit3 {
       }
     } else {
       for (int i = 6; i < 10; i++) {
-        Put put = new Put(Bytes.toBytes("01_row1" + i));
+        Put put = new Put(Bytes.toBytes("5000_row1" + i));
         put.addColumn(FAMILYNAME, COLNAME, System.currentTimeMillis(), Bytes.toBytes("value1" + i));
         WALEdit walEdit = buildWALEdit(put);
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream((int)walEdit.heapSize())) {
@@ -173,7 +201,7 @@ public class TestKafkaBasedLogSplit3 {
     int msgInterval = TEST_UTIL.getConfiguration().getInt("hbase.regionserver.msginterval", 100);
     TableName tn = TableName.valueOf(TABLENAME);
     byte[][] FAMILY = { FAMILYNAME };
-    byte[][] SPLIT_KEYS = { Bytes.toBytes("01") };
+    byte[][] SPLIT_KEYS = { Bytes.toBytes("5000") };
     Table table = TEST_UTIL.createTable(tn, FAMILY, SPLIT_KEYS);
     List<HRegion> regions = TEST_UTIL.getHBaseCluster().getRegions(tn);
     assertEquals(2, regions.size());
@@ -195,14 +223,14 @@ public class TestKafkaBasedLogSplit3 {
 
     // write some records
     for (long i = 0; i < 5; i++) { // first region
-      Put put = new Put(Bytes.toBytes("00_row" + String.format("%02d",i)));
+      Put put = new Put(Bytes.toBytes("0000_row" + String.format("%02d",i)));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + String.format("%02d",i)));
       put.setAttribute("OFFSET", Bytes.toBytes(i));
       table.put(put);
     }
     // second region
     for (long i = 0; i < 6; i++) {
-      Put put = new Put(Bytes.toBytes("01_row1" + i));
+      Put put = new Put(Bytes.toBytes("5000_row1" + i));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value1" + i));
       put.setAttribute("OFFSET", Bytes.toBytes(i));
       table.put(put);
@@ -211,14 +239,14 @@ public class TestKafkaBasedLogSplit3 {
 
     // write some records again
     for (long i = 5; i < 11; i++) { // first region
-      Put put = new Put(Bytes.toBytes("00_row" + String.format("%02d",i)));
+      Put put = new Put(Bytes.toBytes("0000_row" + String.format("%02d",i)));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + String.format("%02d",i)));
       put.setAttribute("OFFSET", Bytes.toBytes(i));
       table.put(put);
     }
     // second region
     for (long i = 6; i < 10; i++) {
-      Put put = new Put(Bytes.toBytes("01_row1" + i));
+      Put put = new Put(Bytes.toBytes("5000_row1" + i));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + i));
       put.setAttribute("OFFSET", Bytes.toBytes(i));
       table.put(put);
@@ -237,7 +265,7 @@ public class TestKafkaBasedLogSplit3 {
     TEST_UTIL.getMiniHBaseCluster().killRegionServer(sn);
     TEST_UTIL.waitTableAvailable(tn);
 
-    Scan scan = new Scan().withStopRow(Bytes.toBytes("01"));
+    Scan scan = new Scan().withStopRow(Bytes.toBytes("5000"));
     scan.addColumn(FAMILYNAME, COLNAME);
     try (ResultScanner scanner = table.getScanner(scan)) {
       Result result = scanner.next();
@@ -253,7 +281,7 @@ public class TestKafkaBasedLogSplit3 {
       assertEquals(11, i);
     }
 
-    scan = new Scan().withStartRow(Bytes.toBytes("01"));
+    scan = new Scan().withStartRow(Bytes.toBytes("5000"));
     scan.addColumn(FAMILYNAME, COLNAME);
     try (ResultScanner scanner = table.getScanner(scan)) {
       Result result = scanner.next();

@@ -151,4 +151,9 @@ public class TestSplitLogManager extends TestLogRecoveryManager{
   protected LogRecoveryManager getLogRecoveryManager() throws IOException {
     return new SplitLogManager(ds, conf, ds, master, DUMMY_MASTER);
   }
+
+  @Override
+  protected String getTaskName() {
+    return "foo/1";
+  }
 }

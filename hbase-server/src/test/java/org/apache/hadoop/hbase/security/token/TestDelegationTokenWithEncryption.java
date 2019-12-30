@@ -85,7 +85,7 @@ public class TestDelegationTokenWithEncryption extends SecureTestCluster {
       admin.createTable(tableDescriptor);
 
       testPutGetWithDelegationToken(RpcClientImpl.class);
-      testPutGetWithDelegationToken(AsyncRpcClient.class);
+      // testPutGetWithDelegationToken(AsyncRpcClient.class);
     }
   }
 }

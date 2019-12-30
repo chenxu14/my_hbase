@@ -34,6 +34,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.RemoteExceptionHandler;
+import org.apache.hadoop.hbase.SplitLogTask;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.monitoring.TaskMonitor;
@@ -77,7 +78,7 @@ public class KafkaWALSplitter extends WALSplitter{
     // task format : topic_partition_startOffset_endOffset_regionName-startKey-endKey
     taskName = URLDecoder.decode(taskName, "UTF-8");
     String[] taskInfo = taskName.split("_");
-    assert(taskInfo.length == 5);
+    assert(taskInfo.length == SplitLogTask.KAFKA_TASK_FIELD_LEN);
     long startOffset = Long.parseLong(taskInfo[2]);
     long endOffset = Long.parseLong(taskInfo[3]);
     String[] regionInfo = taskInfo[4].split("-"); // regionName-startKey-endKey
@@ -89,37 +90,56 @@ public class KafkaWALSplitter extends WALSplitter{
         progress_failed = true;
         return false;
       }
+      int loop = 0;
       LOOP : while (true) {
-        ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofSeconds(60)); // TODO catch KafkaException
-        for (ConsumerRecord<byte[], byte[]> record: records) {
-          try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(record.value()))) {
-            WALEdit walEdit = new WALEdit();
-            walEdit.readFields(dis);
-            if (walEdit.getCells().size() > 0) {
-              Cell cell = walEdit.getCells().get(0); // With KafkaWAL each WALEntry only corresponds to one record
-              String rowkey = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
-              if (!isRowkeyInRange(rowkey, regionInfo[1], regionInfo[2])) {
-                editsSkipped++; // record not belong to this region
+        boolean reachEnd = false;
+        ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofSeconds(10));
+        if (records.isEmpty()) {
+          loop++;
+          if (loop > 3) {
+            LOG.warn(taskName + " can't reach to the target offset " + endOffset + " after 3 times retry !");
+            break LOOP;
+          }
+        } else {
+          loop = 0; // reset loop, since we have records
+          for (ConsumerRecord<byte[], byte[]> record : records) {
+            if (record.offset() == endOffset) {
+              reachEnd = true;
+            }
+            try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(record.value()))) {
+              WALEdit walEdit = new WALEdit();
+              walEdit.readFields(dis);
+              if (walEdit.getCells().size() > 0) {
+                Cell cell = walEdit.getCells().get(0); // With KafkaWAL each WALEntry only corresponds to one record
+                String rowkey = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
+                if (!isRowkeyInRange(rowkey, regionInfo[1], regionInfo[2])) {
+                  if (LOG.isDebugEnabled()) {
+                    LOG.debug("Ignored rowkey:" + rowkey + ", startKey : " + regionInfo[1]
+                        + ", endKey : " + regionInfo[2]);
+                  }
+                  editsSkipped++; // record not belong to this region
+                  continue;
+                }
+                WALKey key = new WALKey(Bytes.toBytes(regionInfo[0]), TableName.valueOf(KafkaUtil.getTopicTable(taskInfo[0])),
+                    HConstants.NO_SEQNUM, record.timestamp(), HConstants.DEFAULT_CLUSTER_ID);
+                entryBuffers.appendEntry(new Entry(key, walEdit));
+                editsCount++;
+                if (editsCount % interval == 0) {
+                  status.setStatus("Split " + editsCount + " edits, skipped " + editsSkipped + " edits.");
+                  if (reporter != null && !reporter.progress()) {
+                    progress_failed = true;
+                    return false;
+                  }
+                }
+              } else {
+                editsSkipped++;
                 continue;
               }
-              WALKey key = new WALKey(Bytes.toBytes(regionInfo[0]), TableName.valueOf(KafkaUtil.getTopicTable(taskInfo[0])),
-                  HConstants.NO_SEQNUM, record.timestamp(), HConstants.DEFAULT_CLUSTER_ID);
-              entryBuffers.appendEntry(new Entry(key, walEdit));
-              editsCount++;
-              if (editsCount % interval == 0) {
-                status.setStatus("Split " + editsCount + " edits, skipped " + editsSkipped + " edits.");
-                if (reporter != null && !reporter.progress()) {
-                  progress_failed = true;
-                  return false;
-                }
+            } finally {
+              if (reachEnd) {
+                break LOOP;
               }
-            } else {
-              editsSkipped++;
-              continue;
             }
-          }
-          if (record.offset() >= endOffset) {
-            break LOOP; // reach end
           }
         }
       }
@@ -184,6 +204,7 @@ public class KafkaWALSplitter extends WALSplitter{
     TopicPartition p = new TopicPartition(topic, partition);
     consumer.assign(Arrays.asList(p));
     consumer.seek(p, offset);
+    LOG.info("Instance KafkaConsumer seek the position to " + topic + "_" + partition + "_" + offset);
     return consumer;
   }
 }

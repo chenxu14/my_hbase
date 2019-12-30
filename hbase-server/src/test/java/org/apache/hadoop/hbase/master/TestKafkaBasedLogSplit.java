@@ -50,10 +50,15 @@ import org.apache.hadoop.hbase.util.KafkaUtil;
 import org.apache.hadoop.hbase.wal.KafkaWALSplitter;
 import org.apache.hadoop.hbase.wal.WALFactory;
 import org.apache.hadoop.hbase.zookeeper.ZKUtil;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
+import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.AfterClass;
@@ -89,7 +94,7 @@ public class TestKafkaBasedLogSplit {
     Mockito.when(consumer.partitionsFor(Mockito.anyString())).thenReturn(partitions);
     Mockito.doNothing().when(consumer).seekToEnd(Mockito.anyCollection());
     Mockito.doNothing().when(consumer).assign(Mockito.anyCollection());
-    Mockito.when(consumer.position(Mockito.any(TopicPartition.class))).thenReturn(9L); // end position
+    Mockito.when(consumer.position(Mockito.any(TopicPartition.class))).thenReturn(10L); // end position
     Mockito.when(consumer.poll(Mockito.any(Duration.class))).thenReturn(mockKafkaRecords());
     Mockito.when(consumer.offsetsForTimes(Mockito.anyMap())).thenAnswer(
       new Answer<Map<TopicPartition, OffsetAndTimestamp>>(){
@@ -100,6 +105,20 @@ public class TestKafkaBasedLogSplit {
           return Collections.singletonMap(key, new OffsetAndTimestamp(0, 0));
         }
       });
+
+    // mock AdminClient
+    AdminClient adminClient = Mockito.mock(AdminClient.class);
+    OffsetAndMetadata offset = Mockito.mock(OffsetAndMetadata.class);
+    Mockito.when(offset.offset()).thenReturn(9L);
+    Map<TopicPartition, OffsetAndMetadata> offsets = Mockito.mock(HashMap.class);
+    Mockito.when(offsets.get(Mockito.any(TopicPartition.class))).thenReturn(offset);
+    ListConsumerGroupOffsetsResult offsetsRes = Mockito.mock(ListConsumerGroupOffsetsResult.class);
+    KafkaFuture<Map<TopicPartition,OffsetAndMetadata>> future = Mockito.mock(KafkaFuture.class);
+    Mockito.when(future.get()).thenReturn(offsets);
+    Mockito.when(offsetsRes.partitionsToOffsetAndMetadata()).thenReturn(future);
+    Mockito.when(adminClient.listConsumerGroupOffsets(Mockito.anyString(),
+        Mockito.any(ListConsumerGroupOffsetsOptions.class))).thenReturn(offsetsRes);
+
     TEST_UTIL.startMiniCluster(2);// start master and one regionserver
     TEST_UTIL.getMiniHBaseCluster().abortRegionServer(0);
     TEST_UTIL.getMiniHBaseCluster().abortRegionServer(1);
@@ -108,6 +127,7 @@ public class TestKafkaBasedLogSplit {
     TEST_UTIL.getMiniHBaseCluster().startRegionServer();
     KafkaRecoveryManager krm = TEST_UTIL.getHBaseCluster().getMaster().getKafkaRecoveryManager();
     krm.setKafkaConsumer(consumer);
+    krm.setKafkaAdminClient(adminClient);
     KafkaWALSplitter.setKafkaConsumer(consumers);
   }
 
