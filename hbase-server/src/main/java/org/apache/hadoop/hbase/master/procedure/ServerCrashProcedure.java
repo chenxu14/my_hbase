@@ -30,9 +30,11 @@ import java.util.concurrent.locks.Lock;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.ServerName;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.ClusterConnection;
 import org.apache.hadoop.hbase.client.RegionReplicaUtil;
 import org.apache.hadoop.hbase.master.AssignmentManager;
@@ -49,6 +51,9 @@ import org.apache.hadoop.hbase.protobuf.generated.MasterProcedureProtos;
 import org.apache.hadoop.hbase.protobuf.generated.MasterProcedureProtos.ServerCrashState;
 import org.apache.hadoop.hbase.protobuf.generated.ZooKeeperProtos;
 import org.apache.hadoop.hbase.protobuf.generated.ZooKeeperProtos.SplitLogTask.RecoveryMode;
+import org.apache.hadoop.hbase.util.FSUtils;
+import org.apache.hadoop.hbase.wal.AbstractFSWALProvider;
+import org.apache.hadoop.hbase.wal.WALSplitter;
 import org.apache.hadoop.hbase.zookeeper.MetaTableLocator;
 import org.apache.hadoop.hbase.zookeeper.ZKAssign;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
@@ -303,6 +308,16 @@ implements ServerProcedureInterface {
       case SERVER_CRASH_FINISH:
         LOG.info("Finished processing of crashed " + serverName);
         services.getServerManager().getDeadServers().finish(serverName);
+        // should clean WALs dir if recovery model is kafka 
+        if (this.recoverModel.equalsIgnoreCase(KafkaRecoveryManager.RECOVERY_MODE)) {
+          Path rootdir = FSUtils.getRootDir(env.getMasterConfiguration());
+          Path logDir = new Path(rootdir, AbstractFSWALProvider.getWALDirectoryName(serverName.toString()));
+          try {
+            WALSplitter.finishSplitLogFile(logDir.toString(), env.getMasterConfiguration());
+          } catch (IOException e) {
+            LOG.warn("Could not finish splitting of log file " + logDir.toString(), e);
+          }
+        }
         return Flow.NO_MORE_STATE;
 
       default:
@@ -438,7 +453,18 @@ implements ServerProcedureInterface {
         size(this.regionsOnCrashedServer));
     }
     AssignmentManager am = env.getMasterServices().getAssignmentManager();
-    if (this.recoverModel.equalsIgnoreCase(KafkaRecoveryManager.RECOVERY_MODE)) {
+
+    boolean isMasterDown = false;
+    try {
+      HRegionInfo nsRegion = am.getRegionStates().getRegionsOfTable(TableName.valueOf("hbase", "namespace")).get(0);
+      ServerName nsServer = am.getRegionStates().getRegionServerOfRegion(nsRegion);
+      isMasterDown = nsServer.equals(this.serverName);
+    } catch (Throwable e) {
+      LOG.warn("could't find the Server that hbase:namespace belongs to.", e);
+    }
+
+    // Retain the original recover logic if serverName is an master server
+    if (!isMasterDown && this.recoverModel.equalsIgnoreCase(KafkaRecoveryManager.RECOVERY_MODE)) {
       KafkaRecoveryManager replayMgr = env.getMasterServices().getKafkaRecoveryManager();
       replayMgr.splitLogs(this.serverName, am.getRegionStates().getServerRegions(this.serverName),
           env.getMasterServices().getServerManager());

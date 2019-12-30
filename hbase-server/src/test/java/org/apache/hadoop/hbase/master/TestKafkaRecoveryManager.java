@@ -26,6 +26,11 @@ import org.junit.experimental.categories.Category;
 public class TestKafkaRecoveryManager extends TestLogRecoveryManager {
   @Override
   protected LogRecoveryManager getLogRecoveryManager() throws IOException {
-    return new KafkaRecoveryManager(ds, master);
+    return new KafkaRecoveryManager(ds, master, true);
+  }
+
+  @Override
+  protected String getTaskName() {
+    return "topic_partition_0_10_regionName-1-2";
   }
 }

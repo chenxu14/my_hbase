@@ -19,11 +19,12 @@ package org.apache.hadoop.hbase.coordination;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.CoordinatedStateException;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.Server;
 import org.apache.hadoop.hbase.TableStateManager;
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.zookeeper.ZKTableStateManager;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 import org.apache.zookeeper.KeeperException;
@@ -33,7 +34,6 @@ import org.apache.zookeeper.KeeperException;
  */
 @InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.CONFIG)
 public class ZkCoordinatedStateManager extends BaseCoordinatedStateManager {
-  private static final Log LOG = LogFactory.getLog(ZkCoordinatedStateManager.class);
   protected Server server;
   protected ZooKeeperWatcher watcher;
   protected SplitTransactionCoordination splitTransactionCoordination;
@@ -47,7 +47,9 @@ public class ZkCoordinatedStateManager extends BaseCoordinatedStateManager {
   public void initialize(Server server) {
     this.server = server;
     this.watcher = server.getZooKeeper();
-    splitLogWorkerCoordination = new ZkSplitLogWorkerCoordination(this, watcher);
+    boolean isHdfsWorker = (server instanceof HMaster) || // master use HDFS split log manager
+        !"kafkaclient".equals(server.getConfiguration().get("hbase.wal.provider"));
+    splitLogWorkerCoordination = new ZkSplitLogWorkerCoordination(this, watcher, isHdfsWorker);
     splitLogManagerCoordination = new ZKSplitLogManagerCoordination(this, watcher);
     splitTransactionCoordination = new ZKSplitTransactionCoordination(this, watcher);
     closeRegionCoordination = new ZkCloseRegionCoordination(this, watcher);

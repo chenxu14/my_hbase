@@ -218,8 +218,9 @@ public abstract class TestLogRecoveryManager {
     assertEquals(newval, e.eval());
   }
 
-  protected String submitTaskAndWait(TaskBatch batch, String name) throws KeeperException,
+  protected String submitTaskAndWait(TaskBatch batch) throws KeeperException,
       InterruptedException {
+    String name = getTaskName();
     String tasknode = ZKSplitLog.getEncodedNodeName(zkw, name);
     NodeCreationListener listener = new NodeCreationListener(zkw, tasknode);
     zkw.registerListener(listener);
@@ -242,13 +243,11 @@ public abstract class TestLogRecoveryManager {
    */
   @Test (timeout=180000)
   public void testTaskCreation() throws Exception {
-
     LOG.info("TestTaskCreation - test the creation of a task in zk");
-    slm = new SplitLogManager(ds, conf, ds, master, DUMMY_MASTER);
+    // slm = new SplitLogManager(ds, conf, ds, master, DUMMY_MASTER);
+    slm = this.getLogRecoveryManager();
     TaskBatch batch = new TaskBatch();
-
-    String tasknode = submitTaskAndWait(batch, "foo/1");
-
+    String tasknode = submitTaskAndWait(batch);
     byte[] data = ZKUtil.getData(zkw, tasknode);
     SplitLogTask slt = SplitLogTask.parseFrom(data);
     LOG.info("Task node created " + slt.toString());
@@ -258,8 +257,7 @@ public abstract class TestLogRecoveryManager {
   @Test (timeout=180000)
   public void testOrphanTaskAcquisition() throws Exception {
     LOG.info("TestOrphanTaskAcquisition");
-
-    String tasknode = ZKSplitLog.getEncodedNodeName(zkw, "orphan/test/slash");
+    String tasknode = ZKSplitLog.getEncodedNodeName(zkw, "orphan/" + this.getTaskName());
     SplitLogTask slt = new SplitLogTask.Owned(DUMMY_MASTER, this.mode);
     zkw.getRecoverableZooKeeper().create(tasknode, slt.toByteArray(), Ids.OPEN_ACL_UNSAFE,
         CreateMode.PERSISTENT);
@@ -281,11 +279,13 @@ public abstract class TestLogRecoveryManager {
 
   protected abstract LogRecoveryManager getLogRecoveryManager() throws IOException;
 
+  protected abstract String getTaskName();
+
   @Test (timeout=180000)
   public void testUnassignedOrphan() throws Exception {
     LOG.info("TestUnassignedOrphan - an unassigned task is resubmitted at" +
         " startup");
-    String tasknode = ZKSplitLog.getEncodedNodeName(zkw, "orphan/test/slash");
+    String tasknode = ZKSplitLog.getEncodedNodeName(zkw, "orphan/" + this.getTaskName());
     //create an unassigned orphan task
     SplitLogTask slt = new SplitLogTask.Unassigned(DUMMY_MASTER, this.mode);
     zkw.getRecoverableZooKeeper().create(tasknode, slt.toByteArray(), Ids.OPEN_ACL_UNSAFE,
@@ -317,7 +317,7 @@ public abstract class TestLogRecoveryManager {
     slm = getLogRecoveryManager();
     TaskBatch batch = new TaskBatch();
 
-    String tasknode = submitTaskAndWait(batch, "foo/1");
+    String tasknode = submitTaskAndWait(batch);
     int version = ZKUtil.checkExists(zkw, tasknode);
     final ServerName worker1 = ServerName.valueOf("worker1,1,1");
     final ServerName worker2 = ServerName.valueOf("worker2,1,1");
@@ -349,7 +349,7 @@ public abstract class TestLogRecoveryManager {
     slm = getLogRecoveryManager();
     TaskBatch batch = new TaskBatch();
 
-    String tasknode = submitTaskAndWait(batch, "foo/1");
+    String tasknode = submitTaskAndWait(batch);
     int version = ZKUtil.checkExists(zkw, tasknode);
     final ServerName worker1 = ServerName.valueOf("worker1,1,1");
     SplitLogTask slt = new SplitLogTask.Owned(worker1, this.mode);
@@ -377,7 +377,7 @@ public abstract class TestLogRecoveryManager {
 
     slm = getLogRecoveryManager();
     TaskBatch batch = new TaskBatch();
-    String tasknode = submitTaskAndWait(batch, "foo/1");
+    String tasknode = submitTaskAndWait(batch);
     final ServerName worker1 = ServerName.valueOf("worker1,1,1");
     SplitLogTask slt = new SplitLogTask.Done(worker1, this.mode);
     ZKUtil.setData(zkw, tasknode, slt.toByteArray());
@@ -398,7 +398,7 @@ public abstract class TestLogRecoveryManager {
     slm = getLogRecoveryManager();
     TaskBatch batch = new TaskBatch();
 
-    String tasknode = submitTaskAndWait(batch, "foo/1");
+    String tasknode = submitTaskAndWait(batch);
     final ServerName worker1 = ServerName.valueOf("worker1,1,1");
     SplitLogTask slt = new SplitLogTask.Err(worker1, this.mode);
     ZKUtil.setData(zkw, tasknode, slt.toByteArray());
@@ -420,7 +420,7 @@ public abstract class TestLogRecoveryManager {
     slm = getLogRecoveryManager();
     assertEquals(tot_mgr_resubmit.get(), 0);
     TaskBatch batch = new TaskBatch();
-    String tasknode = submitTaskAndWait(batch, "foo/1");
+    String tasknode = submitTaskAndWait(batch);
     assertEquals(tot_mgr_resubmit.get(), 0);
     final ServerName worker1 = ServerName.valueOf("worker1,1,1");
     assertEquals(tot_mgr_resubmit.get(), 0);
@@ -445,7 +445,7 @@ public abstract class TestLogRecoveryManager {
         " resubmit");
 
     // create an orphan task in OWNED state
-    String tasknode1 = ZKSplitLog.getEncodedNodeName(zkw, "orphan/1");
+    String tasknode1 = ZKSplitLog.getEncodedNodeName(zkw, "orphan/" + this.getTaskName());
     final ServerName worker1 = ServerName.valueOf("worker1,1,1");
     SplitLogTask slt = new SplitLogTask.Owned(worker1, this.mode);
     zkw.getRecoverableZooKeeper().create(tasknode1, slt.toByteArray(), Ids.OPEN_ACL_UNSAFE,
@@ -456,7 +456,7 @@ public abstract class TestLogRecoveryManager {
 
     // submit another task which will stay in unassigned mode
     TaskBatch batch = new TaskBatch();
-    submitTaskAndWait(batch, "foo/1");
+    submitTaskAndWait(batch);
 
     // keep updating the orphan owned node every to/2 seconds
     for (int i = 0; i < (3 * to)/100; i++) {
@@ -483,7 +483,7 @@ public abstract class TestLogRecoveryManager {
     slm = getLogRecoveryManager();
     TaskBatch batch = new TaskBatch();
 
-    String tasknode = submitTaskAndWait(batch, "foo/1");
+    String tasknode = submitTaskAndWait(batch);
     int version = ZKUtil.checkExists(zkw, tasknode);
     final ServerName worker1 = ServerName.valueOf("worker1,1,1");
     SplitLogTask slt = new SplitLogTask.Owned(worker1, this.mode);
@@ -508,7 +508,7 @@ public abstract class TestLogRecoveryManager {
     slm = getLogRecoveryManager();
     TaskBatch batch = new TaskBatch();
 
-    String tasknode = submitTaskAndWait(batch, "foo/1");
+    String tasknode = submitTaskAndWait(batch);
     final ServerName worker1 = ServerName.valueOf("worker1,1,1");
 
     SplitLogTask slt = new SplitLogTask.Owned(worker1, this.mode);
