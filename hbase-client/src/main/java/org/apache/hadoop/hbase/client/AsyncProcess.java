@@ -166,7 +166,7 @@ class AsyncProcess {
     }
 
     @Override
-    public void waitUntilDone() throws InterruptedIOException {
+    public void waitUntilDone() throws InterruptedException {
     }
   };
 
@@ -520,9 +520,11 @@ class AsyncProcess {
   }
 
   public <CResult> AsyncRequestFuture submitAll(ExecutorService pool, TableName tableName,
-      List<? extends Row> rows, Batch.Callback<CResult> callback, Object[] results) {
+      List<? extends Row> rows, Batch.Callback<CResult> callback, Object[] results)
+          throws InterruptedException {
     return submitAll(pool, tableName, rows, callback, results, null, -1);
   }
+
   /**
    * Submit immediately the list of rows, whatever the server status. Kept for backward
    * compatibility: it allows to be used with the batch interface that return an array of objects.
@@ -532,10 +534,11 @@ class AsyncProcess {
    * @param rows the list of rows.
    * @param callback the callback.
    * @param rpcTimeout rpc timeout for this batch, set -1 if want to use current setting.
+   * @throws InterruptedException 
    */
   public <CResult> AsyncRequestFuture submitAll(ExecutorService pool, TableName tableName,
       List<? extends Row> rows, Batch.Callback<CResult> callback, Object[] results,
-      CancellableRegionServerCallable callable, int rpcTimeout) {
+      CancellableRegionServerCallable callable, int rpcTimeout) throws InterruptedException {
     List<Action<Row>> actions = new ArrayList<Action<Row>>(rows.size());
 
     // The position will be used by the processBatch to match the object array returned.

@@ -276,7 +276,11 @@ public final class Canary implements Tool {
           sink.publishReadFailure(region, column, e);
         } finally {
           if (rs != null) {
-            rs.close();
+            try {
+              rs.close();
+            } catch (IOException e) {
+              LOG.error("Close scanner failed", e);
+            }
           }
           scan = null;
           get = null;

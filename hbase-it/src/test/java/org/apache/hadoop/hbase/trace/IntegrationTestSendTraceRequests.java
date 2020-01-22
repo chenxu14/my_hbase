@@ -145,7 +145,13 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
               TraceUtil.addKVAnnotation("exception", e.getClass().getSimpleName());
             } catch (Exception e) {
             } finally {
-              if (rs != null) rs.close();
+              if (rs != null) {
+                try {
+                  rs.close();
+                } catch (IOException e) {
+                  e.printStackTrace();
+                }
+              }
             }
 
           }

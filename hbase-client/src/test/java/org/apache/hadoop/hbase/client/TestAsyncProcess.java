@@ -210,7 +210,7 @@ public class TestAsyncProcess {
     @Override
     public <CResult> AsyncRequestFuture submitAll(ExecutorService pool, TableName tableName,
       List<? extends Row> rows, Batch.Callback<CResult> callback, Object[] results,
-      CancellableRegionServerCallable callable, int curTimeout) {
+      CancellableRegionServerCallable callable, int curTimeout) throws InterruptedException {
       previousTimeout = curTimeout;
       return super.submitAll(pool, tableName, rows, callback, results, callable, curTimeout);
     }

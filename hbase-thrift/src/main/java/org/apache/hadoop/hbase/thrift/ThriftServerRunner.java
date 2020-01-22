@@ -1403,7 +1403,11 @@ public class ThriftServerRunner implements Runnable {
         LOG.warn(message);
         throw new IllegalArgument("scanner ID is invalid");
       }
-      resultScannerWrapper.getScanner().close();
+      try {
+        resultScannerWrapper.getScanner().close();
+      } catch (IOException e) {
+        LOG.error("close scanner failed", e);
+      }
       removeScanner(id);
     }
 

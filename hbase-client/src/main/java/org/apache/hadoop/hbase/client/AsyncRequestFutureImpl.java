@@ -20,7 +20,6 @@
 package org.apache.hadoop.hbase.client;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -54,6 +53,7 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.ClientProtos;
 import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
+import org.apache.hadoop.hbase.util.ExceptionUtil;
 import org.apache.htrace.core.Tracer;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -142,9 +142,15 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
       if (results[index] != null)
         return; // opportunistic. Never goes from non-null to null.
       Action<Row> action = initialActions.get(index);
-      RegionLocations loc = findAllLocationsOrFail(action, true);
-      if (loc == null)
+      RegionLocations loc = null;
+      try {
+        loc = findAllLocationsOrFail(action, true);
+      } catch (InterruptedException e) {
+        LOG.debug("find region locations failed when add Replica action", e);
+      }
+      if (loc == null) {
         return;
+      }
       HRegionLocation[] locs = loc.getRegionLocations();
       if (locs.length == 1) {
         LOG.warn("No replicas found for " + action.getAction());
@@ -180,9 +186,15 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
       if (action.getReplicaId() == RegionReplicaUtil.DEFAULT_REPLICA_ID) {
         throw new AssertionError("Cannot have default replica here");
       }
-      HRegionLocation loc = getReplicaLocationOrFail(action);
-      if (loc == null)
+      HRegionLocation loc = null;
+      try {
+        loc = getReplicaLocationOrFail(action);
+      } catch (InterruptedException e) {
+        LOG.debug("find region locations failed when add Replica action again", e);
+      }
+      if (loc == null) {
         return;
+      }
       AsyncProcess.addAction(loc.getServerName(), loc.getRegionInfo().getRegionName(), action, actionsByServer,
           nonceGroup);
     }
@@ -478,7 +490,7 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
    * @param numAttempt
    *            - the current numAttempt (first attempt is 1)
    */
-  void groupAndSendMultiAction(List<Action<Row>> currentActions, int numAttempt) {
+  void groupAndSendMultiAction(List<Action<Row>> currentActions, int numAttempt) throws InterruptedException {
     Map<ServerName, MultiAction<Row>> actionsByServer = new HashMap<ServerName, MultiAction<Row>>();
 
     boolean isReplica = false;
@@ -535,7 +547,7 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
     }
   }
 
-  private HRegionLocation getReplicaLocationOrFail(Action<Row> action) {
+  private HRegionLocation getReplicaLocationOrFail(Action<Row> action) throws InterruptedException {
     // We are going to try get location once again. For each action, we'll
     // do it once
     // from cache, because the previous calls in the loop might populate it.
@@ -566,7 +578,7 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
     manageError(action.getOriginalIndex(), action.getAction(), Retry.NO_LOCATION_PROBLEM, ex, null);
   }
 
-  private RegionLocations findAllLocationsOrFail(Action<Row> action, boolean useCache) {
+  private RegionLocations findAllLocationsOrFail(Action<Row> action, boolean useCache) throws InterruptedException {
     if (action.getAction() == null)
       throw new IllegalArgumentException("#" + asyncProcess.id + ", row cannot be null");
     RegionLocations loc = null;
@@ -574,6 +586,9 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
       loc = asyncProcess.connection.locateRegion(tableName, action.getAction().getRow(), useCache, true,
           action.getReplicaId());
     } catch (IOException ex) {
+      if (ExceptionUtil.isInterrupt(ex)) {
+        ExceptionUtil.rethrowInterrupt(ex);
+      }
       manageLocationError(action, ex);
     }
     return loc;
@@ -864,13 +879,12 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
       if (backOffTime > 0) {
         Thread.sleep(backOffTime);
       }
+      groupAndSendMultiAction(toReplay, nextAttemptNumber);
     } catch (InterruptedException e) {
       LOG.warn("#" + asyncProcess.id + ", not sent: " + toReplay.size() + " operations, " + oldServer, e);
       Thread.currentThread().interrupt();
       return;
     }
-
-    groupAndSendMultiAction(toReplay, nextAttemptNumber);
   }
 
   private void logNoResubmit(ServerName oldServer, int numAttempt, int failureCount, Throwable throwable, int failed,
@@ -1295,11 +1309,9 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
   }
 
   @Override
-  public void waitUntilDone() throws InterruptedIOException {
+  public void waitUntilDone() throws InterruptedException {
     try {
       waitUntilDone(Long.MAX_VALUE);
-    } catch (InterruptedException iex) {
-      throw new InterruptedIOException(iex.getMessage());
     } finally {
       if (callsInProgress != null) {
         for (CancellableRegionServerCallable clb : callsInProgress) {
@@ -1358,7 +1370,7 @@ class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
   }
 
   @Override
-  public Object[] getResults() throws InterruptedIOException {
+  public Object[] getResults() throws InterruptedException {
     waitUntilDone();
     return results;
   }

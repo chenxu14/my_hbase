@@ -350,24 +350,17 @@ public class ScannerCallable extends ClientServiceCallable<Result[]> {
     }
   }
 
-  private void close() {
+  private void close() throws IOException {
     if (this.scannerId == -1L) {
       return;
     }
+    incRPCcallsMetrics();
+    ScanRequest request =
+        RequestConverter.buildScanRequest(this.scannerId, 0, true, this.scanMetrics != null);
     try {
-      incRPCcallsMetrics();
-      ScanRequest request =
-          RequestConverter.buildScanRequest(this.scannerId, 0, true, this.scanMetrics != null);
-      try {
-        getStub().scan(getRpcController(), request);
-      } catch (Exception e) {
-        throw ProtobufUtil.handleRemoteException(e);
-      }
-    } catch (IOException e) {
-      TableName table = getTableName();
-      String tableDetails = (table == null) ? "" : (" on table: " + table.getNameAsString());
-      LOG.warn("Ignore, probably already closed. Current scan: " + getScan().toString()
-          + tableDetails, e);
+      getStub().scan(getRpcController(), request);
+    } catch (Exception e) {
+      throw ProtobufUtil.handleRemoteException(e);
     }
     this.scannerId = -1L;
   }

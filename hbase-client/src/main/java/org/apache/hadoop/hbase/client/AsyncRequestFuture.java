@@ -18,10 +18,9 @@
  */
 package org.apache.hadoop.hbase.client;
 
-import org.apache.hadoop.hbase.classification.InterfaceAudience;
-
-import java.io.InterruptedIOException;
 import java.util.List;
+
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
 
 /**
  * The context used to wait for results from one submit call.
@@ -34,7 +33,7 @@ public interface AsyncRequestFuture {
   public boolean hasError();
   public RetriesExhaustedWithDetailsException getErrors();
   public List<? extends Row> getFailedOperations();
-  public Object[] getResults() throws InterruptedIOException;
+  public Object[] getResults() throws InterruptedException;
   /** Wait until all tasks are executed, successfully or not. */
-  public void waitUntilDone() throws InterruptedIOException;
+  public void waitUntilDone() throws InterruptedException;
 }

@@ -54,6 +54,17 @@ public class ExceptionUtil {
   }
 
   /**
+   * @throws InterruptedIOException if t was an interruption. Does nothing otherwise.
+   */
+  public static void rethrowInterrupt(Throwable t) throws InterruptedException {
+    if (t instanceof InterruptedException) {
+      throw (InterruptedException) t;
+    } else {
+      throw new InterruptedException(t.getMessage());
+    }
+  }
+
+  /**
    * @return an InterruptedIOException if t was an interruption, null otherwise
    */
   public static InterruptedIOException asInterrupt(Throwable t) {

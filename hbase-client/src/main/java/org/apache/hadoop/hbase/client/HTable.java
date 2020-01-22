@@ -19,6 +19,7 @@
 package org.apache.hadoop.hbase.client;
 
 import static org.apache.hadoop.hbase.client.ConnectionUtils.checkHasFamilies;
+
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.ArrayList;
@@ -851,22 +852,18 @@ public class HTable implements HTableInterface, RegionLocator {
     if (gets.size() == 1) {
       return new Result[]{get(gets.get(0))};
     }
-    try {
-      Object[] r1 = new Object[gets.size()];
-      batch((List<? extends Row>)gets, r1, readRpcTimeout);
-      // translate.
-      Result [] results = new Result[r1.length];
-      
-      int i = 0;
-      for (Object obj: r1) {
-        // Batch ensures if there is a failure we get an exception instead
-        results[i++] = (Result)obj;
-      }
+    Object[] r1 = new Object[gets.size()];
+    batch((List<? extends Row>)gets, r1, readRpcTimeout);
+    // translate.
+    Result [] results = new Result[r1.length];
 
-      return results;
-    } catch (InterruptedException e) {
-      throw (InterruptedIOException)new InterruptedIOException().initCause(e);
+    int i = 0;
+    for (Object obj: r1) {
+      // Batch ensures if there is a failure we get an exception instead
+      results[i++] = (Result)obj;
     }
+
+    return results;
   }
 
   /**
@@ -874,16 +871,21 @@ public class HTable implements HTableInterface, RegionLocator {
    */
   @Override
   public void batch(final List<? extends Row> actions, final Object[] results)
-      throws InterruptedException, IOException {
+      throws IOException {
     batch(actions, results, -1);
   }
 
   public void batch(final List<? extends Row> actions, final Object[] results, int rpcTimeout)
-      throws InterruptedException, IOException {
-    AsyncRequestFuture ars = multiAp.submitAll(pool, tableName, actions, null, results, null,
+      throws IOException {
+    AsyncRequestFuture ars = null;
+    try {
+      ars = multiAp.submitAll(pool, tableName, actions, null, results, null,
         rpcTimeout);
-    ars.waitUntilDone();
-    if (ars.hasError()) {
+      ars.waitUntilDone();
+    } catch (InterruptedException e) {
+      LOG.debug("slow batch request may be cancelled in the dual cluster access scenario");      
+    }
+    if (ars!= null && ars.hasError()) {
       throw ars.getErrors();
     }
   }
@@ -950,10 +952,15 @@ public class HTable implements HTableInterface, RegionLocator {
     
     List<Row> rows = new ArrayList<Row>();
     rows.add(delete);
-    AsyncRequestFuture ars = multiAp.submitAll(pool, tableName, rows,
-        null, null, callable, writeRpcTimeout);
-    ars.waitUntilDone();
-    if (ars.hasError()) {
+    AsyncRequestFuture ars = null;
+    try {
+      ars = multiAp.submitAll(pool, tableName, rows,
+          null, null, callable, writeRpcTimeout);
+      ars.waitUntilDone();
+    } catch (InterruptedException e) {
+      LOG.debug("slow delete request may be cancelled in the dual cluster access scenario");
+    }
+    if (ars != null && ars.hasError()) {
       throw ars.getErrors();
     }
   }
@@ -967,8 +974,6 @@ public class HTable implements HTableInterface, RegionLocator {
     Object[] results = new Object[deletes.size()];
     try {
       batch(deletes, results, writeRpcTimeout);
-    } catch (InterruptedException e) {
-      throw (InterruptedIOException)new InterruptedIOException().initCause(e);
     } finally {
       // mutate list so that it is empty for complete success, or contains only failed records
       // results are returned in the same order as the requests in list
@@ -1033,10 +1038,15 @@ public class HTable implements HTableInterface, RegionLocator {
         return ResponseConverter.getResults(request, response, getRpcControllerCellScanner());
       }
     };
-    AsyncRequestFuture ars = multiAp.submitAll(pool, tableName, rm.getMutations(),
-        null, null, callable, writeRpcTimeout);
-    ars.waitUntilDone();
-    if (ars.hasError()) {
+    AsyncRequestFuture ars = null;
+    try {
+      ars = multiAp.submitAll(pool, tableName, rm.getMutations(),
+          null, null, callable, writeRpcTimeout);
+      ars.waitUntilDone();
+    } catch (InterruptedException e) {
+      LOG.debug("slow mutateRow request may be cancelled in the dual cluster access scenario");
+    }
+    if (ars!= null && ars.hasError()) {
       throw ars.getErrors();
     }
   }
@@ -1219,10 +1229,15 @@ public class HTable implements HTableInterface, RegionLocator {
     rows.add(delete);
 
     Object[] results = new Object[1];
-    AsyncRequestFuture ars = multiAp.submitAll(pool, tableName, rows,
-        null, results, callable, -1);
-    ars.waitUntilDone();
-    if (ars.hasError()) {
+    AsyncRequestFuture ars = null;
+    try {
+      ars = multiAp.submitAll(pool, tableName, rows,
+          null, results, callable, -1);
+      ars.waitUntilDone();
+    } catch (InterruptedException e) {
+      LOG.debug("slow checkAndDelete request may be cancelled in the dual cluster access scenario");
+    }
+    if (ars!= null && ars.hasError()) {
       throw ars.getErrors();
     }
     return ((SingleResponse.Entry)results[0]).isProcessed();
@@ -1263,10 +1278,15 @@ public class HTable implements HTableInterface, RegionLocator {
      *  It is excessive to send such a large array, but that is required by the framework right now
      * */
     Object[] results = new Object[rm.getMutations().size()];
-    AsyncRequestFuture ars = multiAp.submitAll(pool, tableName, rm.getMutations(),
-      null, results, callable, -1);
-    ars.waitUntilDone();
-    if (ars.hasError()) {
+    AsyncRequestFuture ars = null;
+    try {
+      ars = multiAp.submitAll(pool, tableName, rm.getMutations(),
+        null, results, callable, -1);
+      ars.waitUntilDone();
+    } catch (InterruptedException e) {
+      LOG.debug("slow checkAndMutate request may be cancelled in the dual cluster access scenario");
+    }
+    if (ars!= null && ars.hasError()) {
       throw ars.getErrors();
     }
 
@@ -1299,11 +1319,7 @@ public class HTable implements HTableInterface, RegionLocator {
     }
 
     Object[] r1= new Object[exists.size()];
-    try {
-      batch(exists, r1, readRpcTimeout);
-    } catch (InterruptedException e) {
-      throw (InterruptedIOException)new InterruptedIOException().initCause(e);
-    }
+    batch(exists, r1, readRpcTimeout);
 
     // translate.
     boolean[] results = new boolean[r1.length];
@@ -1791,7 +1807,9 @@ public class HTable implements HTableInterface, RegionLocator {
             RpcRetryingCallerFactory.instantiate(configuration, connection.getStatisticsTracker()),
             true, RpcControllerFactory.instantiate(configuration), readRpcTimeout);
 
-    AsyncRequestFuture future = asyncProcess.submitAll(null, tableName, execs,
+    AsyncRequestFuture future = null;
+    try {
+      future = asyncProcess.submitAll(null, tableName, execs,
         new Callback<ClientProtos.CoprocessorServiceResult>() {
           @Override
           public void update(byte[] region, byte[] row,
@@ -1817,9 +1835,12 @@ public class HTable implements HTableInterface, RegionLocator {
           }
         }, results);
 
-    future.waitUntilDone();
+      future.waitUntilDone();
+    } catch (InterruptedException e) {
+      LOG.debug("slow batchCoprocessorService request may be cancelled in the dual cluster access scenario");      
+    }
 
-    if (future.hasError()) {
+    if (future!= null && future.hasError()) {
       throw future.getErrors();
     } else if (!callbackErrorExceptions.isEmpty()) {
       throw new RetriesExhaustedWithDetailsException(callbackErrorExceptions, callbackErrorActions,

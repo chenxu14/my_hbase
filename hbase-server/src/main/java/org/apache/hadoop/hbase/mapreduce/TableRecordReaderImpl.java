@@ -161,8 +161,8 @@ public class TableRecordReaderImpl {
    *
    */
   public void close() {
-    this.scanner.close();
     try {
+      this.scanner.close();
       this.htable.close();
     } catch (IOException ioe) {
       LOG.warn("Error closing table", ioe);

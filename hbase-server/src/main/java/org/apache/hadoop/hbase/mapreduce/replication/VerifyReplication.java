@@ -188,7 +188,11 @@ public class VerifyReplication extends Configured implements Tool {
         } catch (Exception e) {
           LOG.error("fail to scan peer table in cleanup", e);
         } finally {
-          replicatedScanner.close();
+          try {
+            replicatedScanner.close();
+          } catch (IOException e) {
+            LOG.error("fail to close scanner", e);
+          }
           replicatedScanner = null;
         }
       }

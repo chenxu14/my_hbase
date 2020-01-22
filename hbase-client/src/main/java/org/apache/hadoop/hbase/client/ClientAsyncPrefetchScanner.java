@@ -18,11 +18,6 @@
 package org.apache.hadoop.hbase.client;
 
 import static org.apache.hadoop.hbase.client.ConnectionUtils.calcEstimatedSize;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.classification.InterfaceAudience;
-import org.apache.hadoop.hbase.ipc.RpcControllerFactory;
-import org.apache.hadoop.hbase.util.Threads;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -31,6 +26,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.ipc.RpcControllerFactory;
+import org.apache.hadoop.hbase.util.Threads;
 
 /**
  * ClientAsyncPrefetchScanner implements async scanner behaviour.
@@ -133,7 +134,11 @@ public class ClientAsyncPrefetchScanner extends ClientSimpleScanner {
     closed = true;
     if (!isPrefetchRunning()) {
       if(closingThreadId.compareAndSet(NO_THREAD, Thread.currentThread().getId())) {
-        super.close();
+        try {
+          super.close();
+        } catch (IOException e) {
+          exceptionsQueue.add(e);
+        }
       }
     } // else do nothing since the async prefetch still needs this resources
   }

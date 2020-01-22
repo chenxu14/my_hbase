@@ -115,7 +115,11 @@ public class ScannerResultGenerator extends ResultGenerator {
 
   public void close() {
     if (scanner != null) {
-      scanner.close();
+      try {
+        scanner.close();
+      } catch (IOException e) {
+        LOG.error("close scanner failed.", e);
+      }
       scanner = null;
     }
   }

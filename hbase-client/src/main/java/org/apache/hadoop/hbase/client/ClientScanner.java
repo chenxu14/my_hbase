@@ -542,7 +542,7 @@ public abstract class ClientScanner extends AbstractClientScanner {
 
   
   @Override
-  public void close() {
+  public void close() throws IOException {
     if (!scanMetricsPublished) writeScanMetrics();
     if (callable != null) {
       callable.setClose();
@@ -552,11 +552,10 @@ public abstract class ClientScanner extends AbstractClientScanner {
          // We used to catch this error, interpret, and rethrow. However, we
          // have since decided that it's not nice for a scanner's close to
          // throw exceptions. Chances are it was just due to lease time out.
-      } catch (IOException e) {
-         /* An exception other than UnknownScanner is unexpected. */
-         LOG.warn("scanner failed to close. Exception follows: " + e);
+      } finally {
+        callable = null;
+        closed = true;
       }
-      callable = null;
     }
     closed = true;
   }

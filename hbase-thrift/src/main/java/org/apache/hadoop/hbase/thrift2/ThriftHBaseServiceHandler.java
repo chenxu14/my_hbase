@@ -380,16 +380,11 @@ public class ThriftHBaseServiceHandler implements THBaseService.Iface {
       throws TIOError, TException {
     Table htable = getTable(table);
     List<TResult> results = null;
-    ResultScanner scanner = null;
-    try {
-      scanner = htable.getScanner(scanFromThrift(scan));
+    try (ResultScanner scanner = htable.getScanner(scanFromThrift(scan))) {
       results = resultsFromHBase(scanner.next(numRows));
     } catch (IOException e) {
       throw getTIOError(e);
     } finally {
-      if (scanner != null) {
-        scanner.close();
-      }
       closeTable(htable);
     }
     return results;
@@ -408,7 +403,11 @@ public class ThriftHBaseServiceHandler implements THBaseService.Iface {
       ex.setMessage("Invalid scanner Id");
       throw ex;
     }
-    scanner.close();
+    try {
+      scanner.close();
+    } catch (IOException e) {
+      LOG.error("close scanner failed.", e);
+    }
     removeScanner(scannerId);
   }
 
