@@ -22,6 +22,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.group.ChannelGroup;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.shaded.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Decoder for rpc request.
@@ -40,6 +41,11 @@ class NettyRpcServerRequestDecoder extends ChannelInboundHandlerAdapter {
   }
 
   private NettyServerRpcConnection connection;
+
+  @VisibleForTesting
+  public NettyServerRpcConnection getConnection() {
+    return connection;
+  }
 
   void setConnection(NettyServerRpcConnection connection) {
     this.connection = connection;

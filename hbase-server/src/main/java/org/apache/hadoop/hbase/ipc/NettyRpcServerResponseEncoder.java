@@ -17,12 +17,14 @@
  */
 package org.apache.hadoop.hbase.ipc;
 
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
-
-import org.apache.hadoop.hbase.classification.InterfaceAudience;
 
 /**
  * Encoder for {@link RpcResponse}.
@@ -30,7 +32,7 @@ import org.apache.hadoop.hbase.classification.InterfaceAudience;
  */
 @InterfaceAudience.Private
 class NettyRpcServerResponseEncoder extends ChannelOutboundHandlerAdapter {
-
+  public static final Logger LOG = LoggerFactory.getLogger(NettyRpcServerResponseEncoder.class);
   private final MetricsHBaseServer metrics;
 
   NettyRpcServerResponseEncoder(MetricsHBaseServer metrics) {
@@ -43,8 +45,9 @@ class NettyRpcServerResponseEncoder extends ChannelOutboundHandlerAdapter {
     if (msg instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) msg;
       BufferChain buf = resp.getResponse();
+      NettyRpcServer.LOG.trace("write response to client");
       ctx.write(Unpooled.wrappedBuffer(buf.getBuffers()), promise).addListener(f -> {
-        resp.done();
+        NettyRpcServer.LOG.trace("response encoder done, successful is " + f.isSuccess());
         if (f.isSuccess()) {
           metrics.sentBytes(buf.size());
         }

@@ -129,6 +129,11 @@ public interface RpcCall extends RpcCallContext {
   void cleanup();
 
   /**
+   * release the BB resource this call used
+   */
+  void releaseResource();
+
+  /**
    * @return A short string format of this call without possibly lengthy params
    */
   String toShortString();

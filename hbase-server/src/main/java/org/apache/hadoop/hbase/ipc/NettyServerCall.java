@@ -49,9 +49,12 @@ class NettyServerCall extends ServerCall<NettyServerRpcConnection> {
    * respond to client. This is called by the RPC code in the context of the Handler thread.
    */
   @Override
-  public synchronized void sendResponseIfReady() throws IOException {
+  public void sendResponseIfReady() throws IOException {
     // set param null to reduce memory pressure
     this.param = null;
-    connection.channel.writeAndFlush(this);
+    connection.channel.writeAndFlush(this).addListener(f -> {
+      this.done();
+      NettyRpcServer.LOG.trace("send request to client done, successful is " + f.isSuccess());
+    });
   }
 }

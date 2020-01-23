@@ -80,6 +80,7 @@ public class CallRunner {
    * Cleanup after ourselves... let go of references.
    */
   private void cleanup() {
+    call.cleanup();
     this.call = null;
     this.rpcServer = null;
   }
@@ -164,8 +165,8 @@ public class CallRunner {
           + ": caught: " + StringUtils.stringifyException(e));
     } finally {
       if (!sucessful) {
+        call.releaseResource();
         this.rpcServer.addCallSize(call.getSize() * -1);
-        call.cleanup();
       }
       cleanup();
     }
@@ -199,8 +200,8 @@ public class CallRunner {
         + ": caught: " + StringUtils.stringifyException(e));
     } finally {
       if (!sucessful) {
+        call.releaseResource();
         this.rpcServer.addCallSize(call.getSize() * -1);
-        call.cleanup();
       }
       cleanup();
     }
