@@ -4261,7 +4261,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
         ", firstSequenceIdInLog=" + firstSeqIdInLog +
         ", maxSequenceIdInLog=" + currentEditSeqId + ", path=" + edits;
       status.markComplete(msg);
-      LOG.debug(msg);
+      LOG.info(msg);
       return currentEditSeqId;
     } finally {
       status.cleanup();

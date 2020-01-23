@@ -706,7 +706,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     try {
       this.serverManager.loadLastFlushedSequenceIds();
     } catch (IOException e) {
-      LOG.debug("Failed to load last flushed sequence id of regions"
+      LOG.info("Failed to load last flushed sequence id of regions"
           + " from file system", e);
     }
 

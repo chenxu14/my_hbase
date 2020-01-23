@@ -117,9 +117,9 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
           lastOffsets.put(topicPartition, lastOffset);
         }
         long startOffset = sm.getLastFlushedSequenceId(region.getEncodedNameAsBytes()).getLastFlushedSequenceId();
-        if (startOffset == HConstants.NO_SEQNUM) {
+        if (startOffset <= 0) {
           long timestamp = System.currentTimeMillis() - regionFlushInterval;
-          LOG.warn(region.getRegionName() + "'s target start offset is -1, seek with timestamp " + timestamp);
+          LOG.warn(region.getEncodedName() + "'s target start offset <= 0, seek with timestamp " + timestamp);
           OffsetAndTimestamp offset = consumer.offsetsForTimes(
               Collections.singletonMap(topicPartition, timestamp)).get(topicPartition);
           startOffset = (offset == null ? 0 : offset.offset());
@@ -199,7 +199,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
         .topicPartitions(Collections.singletonList(partition)).timeoutMs(10000);
     Map<TopicPartition, OffsetAndMetadata> offsets = client.listConsumerGroupOffsets(group, opts)
         .partitionsToOffsetAndMetadata().get();
-    return offsets.get(partition).offset();
+    return offsets.get(partition).offset() - 1;
   }
 
   @Override
