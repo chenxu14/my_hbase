@@ -1871,7 +1871,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     long lastFlushOpSeqIdLocal = this.lastFlushOpSeqId;
     byte[] encodedRegionName = this.getRegionInfo().getEncodedNameAsBytes();
     regionLoadBldr.clearStoreCompleteSequenceId();
-    long maxSeqId = Long.MIN_VALUE;
+    long minSeqId = Long.MAX_VALUE;
     for (byte[] familyName : this.stores.keySet()) {
       long earliest = this.wal.getEarliestMemstoreSeqNum(encodedRegionName, familyName);
       // Subtract - 1 to go earlier than the current oldest, unflushed edit in memstore; this will
@@ -1879,13 +1879,13 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
       // sequence id in this region. If NO_SEQNUM, use the regions maximum flush id.
       long csid = (earliest == HConstants.NO_SEQNUM) ?
           (this.isKafkaBasedWal ? 0 : lastFlushOpSeqIdLocal): earliest - 1;
-      if (csid > maxSeqId) {
-        maxSeqId = csid;
+      if (csid < minSeqId) {
+        minSeqId = csid;
       }
       regionLoadBldr.addStoreCompleteSequenceId(StoreSequenceId.newBuilder()
           .setFamilyName(UnsafeByteOperations.unsafeWrap(familyName)).setSequenceId(csid).build());
     }
-    return regionLoadBldr.setCompleteSequenceId(isKafkaBasedWal ? maxSeqId : getMaxFlushedSeqId());
+    return regionLoadBldr.setCompleteSequenceId(isKafkaBasedWal ? minSeqId : getMaxFlushedSeqId());
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -3249,6 +3249,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
       }
 
       // STEP 3. Build WAL edit
+      long smallestOffset = Long.MAX_VALUE;
       walEdit = new WALEdit(cellCount, replay);
       Durability durability = Durability.USE_DEFAULT;
       for (int i = firstIndex; i < lastIndexExclusive; i++) {
@@ -3256,8 +3257,22 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
         if (batchOp.retCodeDetails[i].getOperationStatusCode() != OperationStatusCode.NOT_RUN) {
           continue;
         }
-
         Mutation m = batchOp.getMutation(i);
+
+        if (wal instanceof KafkaClientWAL) {
+          byte[] offsetBytes = m.getAttribute("OFFSET");
+          if (offsetBytes != null) {
+            try {
+              long offset = Bytes.toLong(offsetBytes);
+              if (offset < smallestOffset) {
+                smallestOffset = offset;
+              }
+            } catch (Throwable e) {
+              LOG.warn(e.getMessage(), e);
+            }
+          }
+        }
+
         Durability tmpDur = getEffectiveDurability(m.getDurability());
         if (tmpDur.ordinal() > durability.ordinal()) {
           durability = tmpDur;
@@ -3314,15 +3329,11 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
 
         // if use KafkaWAL client should pass OFFSET info
         if (wal instanceof KafkaClientWAL) {
-          byte[] offsetBytes = mutation.getAttribute("OFFSET");
-          if (offsetBytes == null) {
-            LOG.warn("No kafka offset find, may lose data when RS shutdown!");
+          if (smallestOffset == Long.MAX_VALUE) {
+            LOG.warn("No kafka offset find, may lose data when RS shutdown. table is "
+                + this.getTableDesc().getTableName().getNameAsString());
           } else {
-            try {
-              walKey.setSequenceId(Bytes.toLong(offsetBytes));
-            } catch (Throwable e) {
-              LOG.warn(e.getMessage(), e);
-            }
+            walKey.setSequenceId(smallestOffset);
           }
         }
         try {
@@ -4351,7 +4362,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
         ", firstSequenceIdInLog=" + firstSeqIdInLog +
         ", maxSequenceIdInLog=" + currentEditSeqId + ", path=" + edits;
       status.markComplete(msg);
-      LOG.debug(msg);
+      LOG.info(msg);
       return currentEditSeqId;
     } finally {
       status.cleanup();

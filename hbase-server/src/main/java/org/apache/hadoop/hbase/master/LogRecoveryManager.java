@@ -194,7 +194,7 @@ public abstract class LogRecoveryManager {
               return;
             }
           }
-          batch.wait(100);
+          batch.wait(1000);
           if (stopper.isStopped()) {
             LOG.warn("Stopped while waiting for log splits to be completed");
             return;

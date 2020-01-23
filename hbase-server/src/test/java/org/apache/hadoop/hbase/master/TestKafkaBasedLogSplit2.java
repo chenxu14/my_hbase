@@ -110,7 +110,7 @@ public class TestKafkaBasedLogSplit2 {
     // mock AdminClient
     AdminClient adminClient = Mockito.mock(AdminClient.class);
     OffsetAndMetadata offset = Mockito.mock(OffsetAndMetadata.class);
-    Mockito.when(offset.offset()).thenReturn(19L);
+    Mockito.when(offset.offset()).thenReturn(20L);
     Map<TopicPartition, OffsetAndMetadata> offsets = Mockito.mock(HashMap.class);
     Mockito.when(offsets.get(Mockito.any(TopicPartition.class))).thenReturn(offset);
     ListConsumerGroupOffsetsResult offsetsRes = Mockito.mock(ListConsumerGroupOffsetsResult.class);

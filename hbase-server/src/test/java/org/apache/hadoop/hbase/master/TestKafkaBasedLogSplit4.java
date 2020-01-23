@@ -98,9 +98,9 @@ public class TestKafkaBasedLogSplit4 {
     OffsetAndMetadata offset = Mockito.mock(OffsetAndMetadata.class);
     Mockito.when(offset.offset()).thenThrow(KafkaException.class);
     OffsetAndMetadata offset_0 = Mockito.mock(OffsetAndMetadata.class);
-    Mockito.when(offset_0.offset()).thenReturn(10L);
+    Mockito.when(offset_0.offset()).thenReturn(11L);
     OffsetAndMetadata offset_1 = Mockito.mock(OffsetAndMetadata.class);
-    Mockito.when(offset_1.offset()).thenReturn(9L);
+    Mockito.when(offset_1.offset()).thenReturn(10L);
     Map<TopicPartition, OffsetAndMetadata> offsets = Mockito.mock(HashMap.class);
     Mockito.when(offsets.get(Mockito.any(TopicPartition.class))).then(new Answer<OffsetAndMetadata>() {
       @Override
