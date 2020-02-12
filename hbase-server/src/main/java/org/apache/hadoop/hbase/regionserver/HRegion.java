@@ -4313,7 +4313,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
               skippedEdits++;
               continue;
             }
-            CellUtil.setSequenceId(cell, isKafkaBasedWal ? HConstants.NO_SEQNUM : currentReplaySeqId);
+            CellUtil.setSequenceId(cell, isKafkaBasedWal ? mvcc.getReadPoint() : currentReplaySeqId);
 
             restoreEdit(store, cell, memStoreSizing);
             editsCount++;
