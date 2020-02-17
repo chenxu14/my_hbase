@@ -1261,6 +1261,30 @@ public final class WALProtos {
      * <code>optional uint64 orig_sequence_number = 11;</code>
      */
     long getOrigSequenceNumber();
+
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    java.util.List<org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair> 
+        getAttributeList();
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair getAttribute(int index);
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    int getAttributeCount();
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    java.util.List<? extends org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder> 
+        getAttributeOrBuilderList();
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder getAttributeOrBuilder(
+        int index);
   }
   /**
    * <pre>
@@ -1289,6 +1313,7 @@ public final class WALProtos {
       nonceGroup_ = 0L;
       nonce_ = 0L;
       origSequenceNumber_ = 0L;
+      attribute_ = java.util.Collections.emptyList();
     }
 
     @java.lang.Override
@@ -1390,6 +1415,15 @@ public final class WALProtos {
               origSequenceNumber_ = input.readUInt64();
               break;
             }
+            case 98: {
+              if (!((mutable_bitField0_ & 0x00000800) == 0x00000800)) {
+                attribute_ = new java.util.ArrayList<org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair>();
+                mutable_bitField0_ |= 0x00000800;
+              }
+              attribute_.add(
+                  input.readMessage(org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.PARSER, extensionRegistry));
+              break;
+            }
           }
         }
       } catch (org.apache.hadoop.hbase.shaded.com.google.protobuf.InvalidProtocolBufferException e) {
@@ -1403,6 +1437,9 @@ public final class WALProtos {
         }
         if (((mutable_bitField0_ & 0x00000080) == 0x00000080)) {
           clusterIds_ = java.util.Collections.unmodifiableList(clusterIds_);
+        }
+        if (((mutable_bitField0_ & 0x00000800) == 0x00000800)) {
+          attribute_ = java.util.Collections.unmodifiableList(attribute_);
         }
         this.unknownFields = unknownFields.build();
         makeExtensionsImmutable();
@@ -1678,6 +1715,41 @@ public final class WALProtos {
       return origSequenceNumber_;
     }
 
+    public static final int ATTRIBUTE_FIELD_NUMBER = 12;
+    private java.util.List<org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair> attribute_;
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    public java.util.List<org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair> getAttributeList() {
+      return attribute_;
+    }
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    public java.util.List<? extends org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder> 
+        getAttributeOrBuilderList() {
+      return attribute_;
+    }
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    public int getAttributeCount() {
+      return attribute_.size();
+    }
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    public org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair getAttribute(int index) {
+      return attribute_.get(index);
+    }
+    /**
+     * <code>repeated .NameBytesPair attribute = 12;</code>
+     */
+    public org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder getAttributeOrBuilder(
+        int index) {
+      return attribute_.get(index);
+    }
+
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
       byte isInitialized = memoizedIsInitialized;
@@ -1714,6 +1786,12 @@ public final class WALProtos {
       }
       for (int i = 0; i < getClusterIdsCount(); i++) {
         if (!getClusterIds(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      for (int i = 0; i < getAttributeCount(); i++) {
+        if (!getAttribute(i).isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -1756,6 +1834,9 @@ public final class WALProtos {
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
         output.writeUInt64(11, origSequenceNumber_);
+      }
+      for (int i = 0; i < attribute_.size(); i++) {
+        output.writeMessage(12, attribute_.get(i));
       }
       unknownFields.writeTo(output);
     }
@@ -1808,6 +1889,10 @@ public final class WALProtos {
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
         size += org.apache.hadoop.hbase.shaded.com.google.protobuf.CodedOutputStream
           .computeUInt64Size(11, origSequenceNumber_);
+      }
+      for (int i = 0; i < attribute_.size(); i++) {
+        size += org.apache.hadoop.hbase.shaded.com.google.protobuf.CodedOutputStream
+          .computeMessageSize(12, attribute_.get(i));
       }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
@@ -1875,6 +1960,8 @@ public final class WALProtos {
         result = result && (getOrigSequenceNumber()
             == other.getOrigSequenceNumber());
       }
+      result = result && getAttributeList()
+          .equals(other.getAttributeList());
       result = result && unknownFields.equals(other.unknownFields);
       return result;
     }
@@ -1934,6 +2021,10 @@ public final class WALProtos {
         hash = (37 * hash) + ORIG_SEQUENCE_NUMBER_FIELD_NUMBER;
         hash = (53 * hash) + org.apache.hadoop.hbase.shaded.com.google.protobuf.Internal.hashLong(
             getOrigSequenceNumber());
+      }
+      if (getAttributeCount() > 0) {
+        hash = (37 * hash) + ATTRIBUTE_FIELD_NUMBER;
+        hash = (53 * hash) + getAttributeList().hashCode();
       }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
@@ -2057,6 +2148,7 @@ public final class WALProtos {
           getClusterIdFieldBuilder();
           getScopesFieldBuilder();
           getClusterIdsFieldBuilder();
+          getAttributeFieldBuilder();
         }
       }
       public Builder clear() {
@@ -2095,6 +2187,12 @@ public final class WALProtos {
         bitField0_ = (bitField0_ & ~0x00000200);
         origSequenceNumber_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000400);
+        if (attributeBuilder_ == null) {
+          attribute_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000800);
+        } else {
+          attributeBuilder_.clear();
+        }
         return this;
       }
 
@@ -2177,6 +2275,15 @@ public final class WALProtos {
           to_bitField0_ |= 0x00000100;
         }
         result.origSequenceNumber_ = origSequenceNumber_;
+        if (attributeBuilder_ == null) {
+          if (((bitField0_ & 0x00000800) == 0x00000800)) {
+            attribute_ = java.util.Collections.unmodifiableList(attribute_);
+            bitField0_ = (bitField0_ & ~0x00000800);
+          }
+          result.attribute_ = attribute_;
+        } else {
+          result.attribute_ = attributeBuilder_.build();
+        }
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -2298,6 +2405,32 @@ public final class WALProtos {
         if (other.hasOrigSequenceNumber()) {
           setOrigSequenceNumber(other.getOrigSequenceNumber());
         }
+        if (attributeBuilder_ == null) {
+          if (!other.attribute_.isEmpty()) {
+            if (attribute_.isEmpty()) {
+              attribute_ = other.attribute_;
+              bitField0_ = (bitField0_ & ~0x00000800);
+            } else {
+              ensureAttributeIsMutable();
+              attribute_.addAll(other.attribute_);
+            }
+            onChanged();
+          }
+        } else {
+          if (!other.attribute_.isEmpty()) {
+            if (attributeBuilder_.isEmpty()) {
+              attributeBuilder_.dispose();
+              attributeBuilder_ = null;
+              attribute_ = other.attribute_;
+              bitField0_ = (bitField0_ & ~0x00000800);
+              attributeBuilder_ = 
+                org.apache.hadoop.hbase.shaded.com.google.protobuf.GeneratedMessageV3.alwaysUseFieldBuilders ?
+                   getAttributeFieldBuilder() : null;
+            } else {
+              attributeBuilder_.addAllMessages(other.attribute_);
+            }
+          }
+        }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
         return this;
@@ -2328,6 +2461,11 @@ public final class WALProtos {
         }
         for (int i = 0; i < getClusterIdsCount(); i++) {
           if (!getClusterIds(i).isInitialized()) {
+            return false;
+          }
+        }
+        for (int i = 0; i < getAttributeCount(); i++) {
+          if (!getAttribute(i).isInitialized()) {
             return false;
           }
         }
@@ -3364,6 +3502,246 @@ public final class WALProtos {
         origSequenceNumber_ = 0L;
         onChanged();
         return this;
+      }
+
+      private java.util.List<org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair> attribute_ =
+        java.util.Collections.emptyList();
+      private void ensureAttributeIsMutable() {
+        if (!((bitField0_ & 0x00000800) == 0x00000800)) {
+          attribute_ = new java.util.ArrayList<org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair>(attribute_);
+          bitField0_ |= 0x00000800;
+         }
+      }
+
+      private org.apache.hadoop.hbase.shaded.com.google.protobuf.RepeatedFieldBuilderV3<
+          org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder> attributeBuilder_;
+
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public java.util.List<org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair> getAttributeList() {
+        if (attributeBuilder_ == null) {
+          return java.util.Collections.unmodifiableList(attribute_);
+        } else {
+          return attributeBuilder_.getMessageList();
+        }
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public int getAttributeCount() {
+        if (attributeBuilder_ == null) {
+          return attribute_.size();
+        } else {
+          return attributeBuilder_.getCount();
+        }
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair getAttribute(int index) {
+        if (attributeBuilder_ == null) {
+          return attribute_.get(index);
+        } else {
+          return attributeBuilder_.getMessage(index);
+        }
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder setAttribute(
+          int index, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair value) {
+        if (attributeBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureAttributeIsMutable();
+          attribute_.set(index, value);
+          onChanged();
+        } else {
+          attributeBuilder_.setMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder setAttribute(
+          int index, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder builderForValue) {
+        if (attributeBuilder_ == null) {
+          ensureAttributeIsMutable();
+          attribute_.set(index, builderForValue.build());
+          onChanged();
+        } else {
+          attributeBuilder_.setMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder addAttribute(org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair value) {
+        if (attributeBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureAttributeIsMutable();
+          attribute_.add(value);
+          onChanged();
+        } else {
+          attributeBuilder_.addMessage(value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder addAttribute(
+          int index, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair value) {
+        if (attributeBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureAttributeIsMutable();
+          attribute_.add(index, value);
+          onChanged();
+        } else {
+          attributeBuilder_.addMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder addAttribute(
+          org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder builderForValue) {
+        if (attributeBuilder_ == null) {
+          ensureAttributeIsMutable();
+          attribute_.add(builderForValue.build());
+          onChanged();
+        } else {
+          attributeBuilder_.addMessage(builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder addAttribute(
+          int index, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder builderForValue) {
+        if (attributeBuilder_ == null) {
+          ensureAttributeIsMutable();
+          attribute_.add(index, builderForValue.build());
+          onChanged();
+        } else {
+          attributeBuilder_.addMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder addAllAttribute(
+          java.lang.Iterable<? extends org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair> values) {
+        if (attributeBuilder_ == null) {
+          ensureAttributeIsMutable();
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.AbstractMessageLite.Builder.addAll(
+              values, attribute_);
+          onChanged();
+        } else {
+          attributeBuilder_.addAllMessages(values);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder clearAttribute() {
+        if (attributeBuilder_ == null) {
+          attribute_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000800);
+          onChanged();
+        } else {
+          attributeBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public Builder removeAttribute(int index) {
+        if (attributeBuilder_ == null) {
+          ensureAttributeIsMutable();
+          attribute_.remove(index);
+          onChanged();
+        } else {
+          attributeBuilder_.remove(index);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder getAttributeBuilder(
+          int index) {
+        return getAttributeFieldBuilder().getBuilder(index);
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder getAttributeOrBuilder(
+          int index) {
+        if (attributeBuilder_ == null) {
+          return attribute_.get(index);  } else {
+          return attributeBuilder_.getMessageOrBuilder(index);
+        }
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public java.util.List<? extends org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder> 
+           getAttributeOrBuilderList() {
+        if (attributeBuilder_ != null) {
+          return attributeBuilder_.getMessageOrBuilderList();
+        } else {
+          return java.util.Collections.unmodifiableList(attribute_);
+        }
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder addAttributeBuilder() {
+        return getAttributeFieldBuilder().addBuilder(
+            org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.getDefaultInstance());
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder addAttributeBuilder(
+          int index) {
+        return getAttributeFieldBuilder().addBuilder(
+            index, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.getDefaultInstance());
+      }
+      /**
+       * <code>repeated .NameBytesPair attribute = 12;</code>
+       */
+      public java.util.List<org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder> 
+           getAttributeBuilderList() {
+        return getAttributeFieldBuilder().getBuilderList();
+      }
+      private org.apache.hadoop.hbase.shaded.com.google.protobuf.RepeatedFieldBuilderV3<
+          org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder> 
+          getAttributeFieldBuilder() {
+        if (attributeBuilder_ == null) {
+          attributeBuilder_ = new org.apache.hadoop.hbase.shaded.com.google.protobuf.RepeatedFieldBuilderV3<
+              org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair.Builder, org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPairOrBuilder>(
+                  attribute_,
+                  ((bitField0_ & 0x00000800) == 0x00000800),
+                  getParentForChildren(),
+                  isClean());
+          attribute_ = null;
+        }
+        return attributeBuilder_;
       }
       public final Builder setUnknownFields(
           final org.apache.hadoop.hbase.shaded.com.google.protobuf.UnknownFieldSet unknownFields) {
@@ -12172,49 +12550,49 @@ public final class WALProtos {
       "\001\n\tWALHeader\022\027\n\017has_compression\030\001 \001(\010\022\026\n" +
       "\016encryption_key\030\002 \001(\014\022\033\n\023has_tag_compres" +
       "sion\030\003 \001(\010\022\027\n\017writer_cls_name\030\004 \001(\t\022\033\n\023c" +
-      "ell_codec_cls_name\030\005 \001(\t\"\240\002\n\006WALKey\022\033\n\023e" +
+      "ell_codec_cls_name\030\005 \001(\t\"\303\002\n\006WALKey\022\033\n\023e" +
       "ncoded_region_name\030\001 \002(\014\022\022\n\ntable_name\030\002" +
       " \002(\014\022\033\n\023log_sequence_number\030\003 \002(\004\022\022\n\nwri" +
       "te_time\030\004 \002(\004\022\035\n\ncluster_id\030\005 \001(\0132\005.UUID" +
       "B\002\030\001\022\034\n\006scopes\030\006 \003(\0132\014.FamilyScope\022\032\n\022fo" +
       "llowing_kv_count\030\007 \001(\r\022\032\n\013cluster_ids\030\010 ",
       "\003(\0132\005.UUID\022\022\n\nnonceGroup\030\t \001(\004\022\r\n\005nonce\030" +
-      "\n \001(\004\022\034\n\024orig_sequence_number\030\013 \001(\004\"=\n\013F" +
-      "amilyScope\022\016\n\006family\030\001 \002(\014\022\036\n\nscope_type" +
-      "\030\002 \002(\0162\n.ScopeType\"\276\001\n\024CompactionDescrip" +
-      "tor\022\022\n\ntable_name\030\001 \002(\014\022\033\n\023encoded_regio" +
-      "n_name\030\002 \002(\014\022\023\n\013family_name\030\003 \002(\014\022\030\n\020com" +
-      "paction_input\030\004 \003(\t\022\031\n\021compaction_output" +
-      "\030\005 \003(\t\022\026\n\016store_home_dir\030\006 \002(\t\022\023\n\013region" +
-      "_name\030\007 \001(\014\"\222\003\n\017FlushDescriptor\022,\n\006actio" +
-      "n\030\001 \002(\0162\034.FlushDescriptor.FlushAction\022\022\n",
-      "\ntable_name\030\002 \002(\014\022\033\n\023encoded_region_name" +
-      "\030\003 \002(\014\022\035\n\025flush_sequence_number\030\004 \001(\004\022<\n" +
-      "\rstore_flushes\030\005 \003(\0132%.FlushDescriptor.S" +
-      "toreFlushDescriptor\022\023\n\013region_name\030\006 \001(\014" +
-      "\032Y\n\024StoreFlushDescriptor\022\023\n\013family_name\030" +
-      "\001 \002(\014\022\026\n\016store_home_dir\030\002 \002(\t\022\024\n\014flush_o" +
-      "utput\030\003 \003(\t\"S\n\013FlushAction\022\017\n\013START_FLUS" +
-      "H\020\000\022\020\n\014COMMIT_FLUSH\020\001\022\017\n\013ABORT_FLUSH\020\002\022\020" +
-      "\n\014CANNOT_FLUSH\020\003\"q\n\017StoreDescriptor\022\023\n\013f" +
-      "amily_name\030\001 \002(\014\022\026\n\016store_home_dir\030\002 \002(\t",
-      "\022\022\n\nstore_file\030\003 \003(\t\022\035\n\025store_file_size_" +
-      "bytes\030\004 \001(\004\"\215\001\n\022BulkLoadDescriptor\022\036\n\nta" +
-      "ble_name\030\001 \002(\0132\n.TableName\022\033\n\023encoded_re" +
-      "gion_name\030\002 \002(\014\022 \n\006stores\030\003 \003(\0132\020.StoreD" +
-      "escriptor\022\030\n\020bulkload_seq_num\030\004 \002(\003\"\237\002\n\025" +
-      "RegionEventDescriptor\0224\n\nevent_type\030\001 \002(" +
-      "\0162 .RegionEventDescriptor.EventType\022\022\n\nt" +
-      "able_name\030\002 \002(\014\022\033\n\023encoded_region_name\030\003" +
-      " \002(\014\022\033\n\023log_sequence_number\030\004 \001(\004\022 \n\006sto" +
-      "res\030\005 \003(\0132\020.StoreDescriptor\022\033\n\006server\030\006 ",
-      "\001(\0132\013.ServerName\022\023\n\013region_name\030\007 \001(\014\".\n" +
-      "\tEventType\022\017\n\013REGION_OPEN\020\000\022\020\n\014REGION_CL" +
-      "OSE\020\001\"\014\n\nWALTrailer*F\n\tScopeType\022\033\n\027REPL" +
-      "ICATION_SCOPE_LOCAL\020\000\022\034\n\030REPLICATION_SCO" +
-      "PE_GLOBAL\020\001BF\n1org.apache.hadoop.hbase.s" +
-      "haded.protobuf.generatedB\tWALProtosH\001\210\001\000" +
-      "\240\001\001"
+      "\n \001(\004\022\034\n\024orig_sequence_number\030\013 \001(\004\022!\n\ta" +
+      "ttribute\030\014 \003(\0132\016.NameBytesPair\"=\n\013Family" +
+      "Scope\022\016\n\006family\030\001 \002(\014\022\036\n\nscope_type\030\002 \002(" +
+      "\0162\n.ScopeType\"\276\001\n\024CompactionDescriptor\022\022" +
+      "\n\ntable_name\030\001 \002(\014\022\033\n\023encoded_region_nam" +
+      "e\030\002 \002(\014\022\023\n\013family_name\030\003 \002(\014\022\030\n\020compacti" +
+      "on_input\030\004 \003(\t\022\031\n\021compaction_output\030\005 \003(" +
+      "\t\022\026\n\016store_home_dir\030\006 \002(\t\022\023\n\013region_name" +
+      "\030\007 \001(\014\"\222\003\n\017FlushDescriptor\022,\n\006action\030\001 \002",
+      "(\0162\034.FlushDescriptor.FlushAction\022\022\n\ntabl" +
+      "e_name\030\002 \002(\014\022\033\n\023encoded_region_name\030\003 \002(" +
+      "\014\022\035\n\025flush_sequence_number\030\004 \001(\004\022<\n\rstor" +
+      "e_flushes\030\005 \003(\0132%.FlushDescriptor.StoreF" +
+      "lushDescriptor\022\023\n\013region_name\030\006 \001(\014\032Y\n\024S" +
+      "toreFlushDescriptor\022\023\n\013family_name\030\001 \002(\014" +
+      "\022\026\n\016store_home_dir\030\002 \002(\t\022\024\n\014flush_output" +
+      "\030\003 \003(\t\"S\n\013FlushAction\022\017\n\013START_FLUSH\020\000\022\020" +
+      "\n\014COMMIT_FLUSH\020\001\022\017\n\013ABORT_FLUSH\020\002\022\020\n\014CAN" +
+      "NOT_FLUSH\020\003\"q\n\017StoreDescriptor\022\023\n\013family",
+      "_name\030\001 \002(\014\022\026\n\016store_home_dir\030\002 \002(\t\022\022\n\ns" +
+      "tore_file\030\003 \003(\t\022\035\n\025store_file_size_bytes" +
+      "\030\004 \001(\004\"\215\001\n\022BulkLoadDescriptor\022\036\n\ntable_n" +
+      "ame\030\001 \002(\0132\n.TableName\022\033\n\023encoded_region_" +
+      "name\030\002 \002(\014\022 \n\006stores\030\003 \003(\0132\020.StoreDescri" +
+      "ptor\022\030\n\020bulkload_seq_num\030\004 \002(\003\"\237\002\n\025Regio" +
+      "nEventDescriptor\0224\n\nevent_type\030\001 \002(\0162 .R" +
+      "egionEventDescriptor.EventType\022\022\n\ntable_" +
+      "name\030\002 \002(\014\022\033\n\023encoded_region_name\030\003 \002(\014\022" +
+      "\033\n\023log_sequence_number\030\004 \001(\004\022 \n\006stores\030\005",
+      " \003(\0132\020.StoreDescriptor\022\033\n\006server\030\006 \001(\0132\013" +
+      ".ServerName\022\023\n\013region_name\030\007 \001(\014\".\n\tEven" +
+      "tType\022\017\n\013REGION_OPEN\020\000\022\020\n\014REGION_CLOSE\020\001" +
+      "\"\014\n\nWALTrailer*F\n\tScopeType\022\033\n\027REPLICATI" +
+      "ON_SCOPE_LOCAL\020\000\022\034\n\030REPLICATION_SCOPE_GL" +
+      "OBAL\020\001BF\n1org.apache.hadoop.hbase.shaded" +
+      ".protobuf.generatedB\tWALProtosH\001\210\001\000\240\001\001"
     };
     org.apache.hadoop.hbase.shaded.com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new org.apache.hadoop.hbase.shaded.com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {
@@ -12241,7 +12619,7 @@ public final class WALProtos {
     internal_static_WALKey_fieldAccessorTable = new
       org.apache.hadoop.hbase.shaded.com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_WALKey_descriptor,
-        new java.lang.String[] { "EncodedRegionName", "TableName", "LogSequenceNumber", "WriteTime", "ClusterId", "Scopes", "FollowingKvCount", "ClusterIds", "NonceGroup", "Nonce", "OrigSequenceNumber", });
+        new java.lang.String[] { "EncodedRegionName", "TableName", "LogSequenceNumber", "WriteTime", "ClusterId", "Scopes", "FollowingKvCount", "ClusterIds", "NonceGroup", "Nonce", "OrigSequenceNumber", "Attribute", });
     internal_static_FamilyScope_descriptor =
       getDescriptor().getMessageTypes().get(2);
     internal_static_FamilyScope_fieldAccessorTable = new

@@ -106,6 +106,7 @@ public class KafkaClientWAL implements WAL {
       // Since KAFKA partition consume serially, each region's lastSeqId will increment serially
       sequenceIdAccounting.update(key.getEncodedRegionName(),
           FSWALEntry.collectFamilies(edits.getCells()), kafkaOffset, true);
+      // sequenceIdAccounting.updateKafkaOffset(key.getEncodedRegionName(), kafkaOffset);
     }
     return -1; // since WALEntry already write to KAFKA(client side), no need to do sync
   }

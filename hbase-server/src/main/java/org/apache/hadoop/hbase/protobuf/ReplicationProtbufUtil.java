@@ -37,6 +37,7 @@ import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.io.SizedCellScanner;
 import org.apache.hadoop.hbase.ipc.PayloadCarryingRpcController;
 import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
+import org.apache.hadoop.hbase.shaded.com.google.protobuf.ByteString;
 import org.apache.hadoop.hbase.shaded.com.google.protobuf.UnsafeByteOperations;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.AdminService;
@@ -108,6 +109,7 @@ public class ReplicationProtbufUtil {
     AdminProtos.ReplicateWALEntryRequest.Builder builder =
       AdminProtos.ReplicateWALEntryRequest.newBuilder();
     HBaseProtos.UUID.Builder uuidBuilder = HBaseProtos.UUID.newBuilder();
+    HBaseProtos.NameBytesPair.Builder attrBuilder = HBaseProtos.NameBytesPair.newBuilder();
     for (Entry entry: entries) {
       entryBuilder.clear();
       // TODO: this duplicates a lot in WALKey#getBuilder
@@ -130,6 +132,14 @@ public class ReplicationProtbufUtil {
         uuidBuilder.setLeastSigBits(clusterId.getLeastSignificantBits());
         uuidBuilder.setMostSigBits(clusterId.getMostSignificantBits());
         keyBuilder.addClusterIds(uuidBuilder.build());
+      }
+      Map<String, byte[]> attrMap = key.getAttributeMap();
+      if (attrMap != null) {
+        for (Map.Entry<String, byte[]> attrEntry : attrMap.entrySet()) {
+          attrBuilder.setName(attrEntry.getKey());
+          attrBuilder.setValue(ByteString.copyFrom(attrEntry.getValue()));
+          keyBuilder.addAttribute(attrBuilder.build());
+        }
       }
       if(key.getOrigLogSeqNum() > 0) {
         keyBuilder.setOrigSequenceNumber(key.getOrigLogSeqNum());

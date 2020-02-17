@@ -3263,6 +3263,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
           byte[] offsetBytes = m.getAttribute("OFFSET");
           if (offsetBytes != null) {
             try {
+              String offsetInfo = Bytes.toString(offsetBytes);
               long offset = Bytes.toLong(offsetBytes);
               if (offset < smallestOffset) {
                 smallestOffset = offset;
