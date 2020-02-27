@@ -57,7 +57,6 @@ import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.WALEntry;
 import org.apache.hadoop.hbase.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.NameBytesPair;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.WALProtos.BulkLoadDescriptor;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.WALProtos.StoreDescriptor;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -197,16 +196,6 @@ public class ReplicationSink {
                 clusterIds.add(toUUID(clusterId));
               }
               m.setClusterIds(clusterIds);
-              List<NameBytesPair> attrList = entry.getKey().getAttributeList();
-              if (attrList != null && attrList.size() > 0) {
-                for (NameBytesPair attr : attrList) {
-                  m.setAttribute(attr.getName(), attr.getValue().toByteArray());
-                  if (LOG.isDebugEnabled()) {
-                    LOG.info("add additional attribute on target Mutation, name is : " + attr.getName()
-                        + ", and value is : " + Bytes.toString(attr.getValue().toByteArray()));
-                  }
-                }
-              }
               addToHashMultiMap(rowMap, table, clusterIds, m);
             }
             if (CellUtil.isDelete(cell)) {

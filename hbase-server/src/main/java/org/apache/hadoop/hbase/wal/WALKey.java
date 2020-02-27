@@ -42,7 +42,6 @@ import org.apache.hadoop.hbase.regionserver.wal.WALCellCodec;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos;
-import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.NameBytesPair;
 import org.apache.hadoop.hbase.protobuf.generated.WALProtos;
 import org.apache.hadoop.hbase.protobuf.generated.WALProtos.FamilyScope;
 import org.apache.hadoop.hbase.protobuf.generated.WALProtos.ScopeType;
@@ -174,7 +173,7 @@ public class WALKey implements SequenceId, Comparable<WALKey> {
   // visible for deprecated HLogKey
   @InterfaceAudience.Private
   protected List<UUID> clusterIds;
-  private Map<String, byte[]> attributes;
+
   private NavigableMap<byte[], Integer> replicationScope;
 
   private long nonceGroup = HConstants.NO_NONCE;
@@ -488,24 +487,6 @@ public class WALKey implements SequenceId, Comparable<WALKey> {
     }
   }
 
-  public void setAttribute(String name, byte[] value) {
-    if (this.attributes == null) {
-      attributes = new HashMap<String, byte[]>();
-    }
-    if (value == null) {
-      attributes.remove(name);
-      if (attributes.isEmpty()) {
-        this.attributes = null;
-      }
-    } else {
-      attributes.put(name, value);
-    }
-  }
-
-  public Map<String, byte[]> getAttributeMap() {
-    return attributes; 
-  }
-
   public void readOlderScopes(NavigableMap<byte[], Integer> scopes) {
     if (scopes != null) {
       Iterator<Map.Entry<byte[], Integer>> iterator = scopes.entrySet()
@@ -667,14 +648,6 @@ public class WALKey implements SequenceId, Comparable<WALKey> {
       uuidBuilder.setMostSigBits(clusterId.getMostSignificantBits());
       builder.addClusterIds(uuidBuilder.build());
     }
-    if (this.attributes != null && attributes.size() > 0) {
-      HBaseProtos.NameBytesPair.Builder attrBuilder = HBaseProtos.NameBytesPair.newBuilder();
-      for (Map.Entry<String, byte[]> attrEntry : attributes.entrySet()) {
-        attrBuilder.setName(attrEntry.getKey());
-        attrBuilder.setValue(ByteString.copyFrom(attrEntry.getValue()));
-        builder.addAttribute(attrBuilder.build());
-      }
-    }
     if (replicationScope != null) {
       for (Map.Entry<byte[], Integer> e : replicationScope.entrySet()) {
         ByteString family = (compressionContext == null)
@@ -715,14 +688,6 @@ public class WALKey implements SequenceId, Comparable<WALKey> {
     }
     if (walKey.hasNonce()) {
       this.nonce = walKey.getNonce();
-    }
-    this.attributes = null;
-    List<NameBytesPair> attrList = walKey.getAttributeList();
-    if (attrList != null && attrList.size() > 0) {
-      attributes = new HashMap<String, byte[]>();
-      for (NameBytesPair attr : attrList) {
-        attributes.put(attr.getName(), attr.getValue().toByteArray());
-      }
     }
     this.replicationScope = null;
     if (walKey.getScopesCount() > 0) {

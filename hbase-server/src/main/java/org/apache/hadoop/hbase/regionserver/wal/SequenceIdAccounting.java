@@ -83,9 +83,6 @@ class SequenceIdAccounting {
   private final ConcurrentMap<byte[], ConcurrentMap<ImmutableByteArray, Long>>
     lowestUnflushedSequenceIds = new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<byte[], ConcurrentMap<Integer, Long>>
-    unflushedKakfaOffsets = new ConcurrentHashMap<>();
-
   /**
    * Map of encoded region names and family names to their lowest or OLDEST sequence/edit id
    * currently being flushed out to hfiles. Entries are moved here from
@@ -179,11 +176,6 @@ class SequenceIdAccounting {
     }
   }
 
-  void updateKafkaOffset(byte[] encodedRegionName, int partition, long offset) {
-    ConcurrentMap<Integer, Long> m = getOrCreateKafkaOffsets(encodedRegionName);
-    m.putIfAbsent(Integer.valueOf(partition), Long.valueOf(offset));
-  }
-
   /**
    * Clear all the records of the given region as it is going to be closed.
    * <p/>
@@ -253,17 +245,6 @@ class SequenceIdAccounting {
     // Another thread may have added it ahead of us.
     ConcurrentMap<ImmutableByteArray, Long> alreadyPut = this.lowestUnflushedSequenceIds
         .putIfAbsent(encodedRegionName, m);
-    return alreadyPut == null ? m : alreadyPut;
-  }
-
-  @VisibleForTesting
-  ConcurrentMap<Integer, Long> getOrCreateKafkaOffsets(byte[] encodedRegionName) {
-    ConcurrentMap<Integer, Long> m = this.unflushedKakfaOffsets.get(encodedRegionName);
-    if (m != null) {
-      return m;
-    }
-    m = new ConcurrentHashMap<>();
-    ConcurrentMap<Integer, Long> alreadyPut = this.unflushedKakfaOffsets.putIfAbsent(encodedRegionName, m);
     return alreadyPut == null ? m : alreadyPut;
   }
 
