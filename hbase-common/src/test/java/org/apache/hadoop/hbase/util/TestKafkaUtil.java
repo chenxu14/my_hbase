@@ -23,7 +23,9 @@ import static org.junit.Assert.assertTrue;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.hbase.testclassification.SmallTests;
 import org.junit.Test;
@@ -69,5 +71,32 @@ public class TestKafkaUtil {
     String hostname = InetAddress.getLocalHost().getHostName();
     String groupName = "connect-" + table + "-" + hostname.substring(0, hostname.indexOf("-"));
     assertEquals(groupName, KafkaUtil.getConsumerGroup("usertable"));
+  }
+
+  @Test
+  public void testConstrains() {
+    int[] partitionCnt = new int[]{1,2,5,10,20,50,100,200,500,1000,2000,5000};
+    Set<Integer> partitions;
+    for (int cnt : partitionCnt) {
+      partitions = new HashSet<>();
+      for (int i = 0; i < KafkaUtil.PART_UPPER_LIMMIT; i++) {
+        if (i % (KafkaUtil.PART_UPPER_LIMMIT / cnt) == 0) {
+          String startkey = String.format("%04d", i);
+          partitions.add(KafkaUtil.getTablePartition(startkey, cnt));
+        }
+      }
+      assertEquals(cnt, partitions.size());
+    }
+  }
+
+  public static void main(String[] args) {
+    int regionCount = 5000;
+    for (int i = 0; i < 10000; i++) {
+      String rowkey = String.format("%04d", i);
+      if (i % (10000 / regionCount) == 0) {
+        System.out.println("rowkey : " + rowkey);
+        System.out.println("partition : " + KafkaUtil.getTablePartition(rowkey, regionCount));
+      }
+    }
   }
 }

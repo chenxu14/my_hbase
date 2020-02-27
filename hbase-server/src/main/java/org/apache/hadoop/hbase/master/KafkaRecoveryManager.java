@@ -97,7 +97,12 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
         String kafkaTopic = KafkaUtil.getTableTopic(table);
         String consumerGroup = KafkaUtil.getConsumerGroup(table);
         if (tablePartitions.get(table) == null) {
-          tablePartitions.put(table, consumer.partitionsFor(kafkaTopic).size());
+          int partitionCnt = consumer.partitionsFor(kafkaTopic).size();
+          if (partitionCnt > KafkaUtil.PART_UPPER_LIMMIT) {
+            partitionCnt = KafkaUtil.PART_UPPER_LIMMIT;
+            LOG.warn("partition count has upper limit, should less than" + KafkaUtil.PART_UPPER_LIMMIT);
+          }
+          tablePartitions.put(table, partitionCnt);
         }
         int kafkaPartition = KafkaUtil.getTablePartition(Bytes.toString(region.getStartKey()),
             tablePartitions.get(table));
