@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
@@ -30,18 +33,20 @@ import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.regionserver.MultiVersionConcurrencyControl;
 import org.apache.hadoop.hbase.shaded.com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.hbase.util.ImmutableByteArray;
 import org.apache.hadoop.hbase.wal.WAL;
 import org.apache.hadoop.hbase.wal.WALKey;
+import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 
 /**
  * WAL implements on Kafka, WALEntry will append on Client side
  */
 @InterfaceAudience.Private
 public class KafkaClientWAL implements WAL {
-  // TODO SequenceIdAccounting can be global? since each WAL corresponding only one KAFKA partition
-  private final SequenceIdAccounting sequenceIdAccounting = new SequenceIdAccounting();
+  private final KafkaOffsetAccounting offsetAccounting = new KafkaOffsetAccounting();
   private final WALCoprocessorHost coprocessorHost;
   private FSHLog hdfsWal;
+  private AtomicReference<ZooKeeperWatcher> zkWatcher = new AtomicReference<>();
 
   public KafkaClientWAL(final Configuration conf, FSHLog hdfsWal) {
     this.coprocessorHost = new WALCoprocessorHost(this, conf);
@@ -72,7 +77,8 @@ public class KafkaClientWAL implements WAL {
   }
 
   @Override
-  public byte[][] rollWriter(boolean force, boolean syncFailed) throws FailedLogCloseException, IOException {
+  public byte[][] rollWriter(boolean force, boolean syncFailed)
+      throws FailedLogCloseException, IOException {
     return hdfsWal.rollWriter(force, syncFailed);
   }
 
@@ -89,8 +95,9 @@ public class KafkaClientWAL implements WAL {
   @Override
   public long appendData(HRegionInfo info, WALKey key, WALEdit edits)
       throws IOException {
-    // Client will pass OFFSET info by Mutation#setAttribute, see HRegion#doMiniBatchMutate
-    long kafkaOffset = key.getSequenceId();
+    // Client will pass offset infos by Mutation#setAttribute
+    ConcurrentHashMap<ImmutableByteArray, ConcurrentHashMap<Integer, Long>> kafkaOffsets =
+        key.getKafkaOffsets(); // famliy -> (partition -> offset)
     // begin mvcc, set WriteEntry to WALKey
     MultiVersionConcurrencyControl.WriteEntry we = key.getMvcc().begin();
     long regionSequenceId = we.getWriteNumber();
@@ -101,20 +108,20 @@ public class KafkaClientWAL implements WAL {
       }
     }
     key.setWriteEntry(we); // this will set WALKey's seqId to MVCC txid
-    key.setSequenceId(kafkaOffset); // change back to KAFKA offset
-    if (kafkaOffset != WALKey.NO_SEQUENCE_ID) {
-      // Since KAFKA partition consume serially, each region's lastSeqId will increment serially
-      sequenceIdAccounting.update(key.getEncodedRegionName(),
-          FSWALEntry.collectFamilies(edits.getCells()), kafkaOffset, true);
+    if (kafkaOffsets != null && kafkaOffsets.size() > 0) {
+      offsetAccounting.updateKafkaOffset(info.getTable().getNameAsString(), key.getEncodedRegionName(),
+        info.getEncodedName(), kafkaOffsets, zkWatcher.get());
     }
     return -1; // since WALEntry already write to KAFKA(client side), no need to do sync
   }
 
   @Override
-  public long appendMarker(HRegionInfo info, WALKey key, WALEdit edits)
-      throws IOException {
+  public long appendMarker(HRegionInfo info, WALKey key, WALEdit edit) throws IOException {
+    if (edit.isRegionCloseMarker()) {
+      this.offsetAccounting.onRegionClose(info.getEncodedNameAsBytes());
+    }
     // append Marker edit to hdfsWal, the Marker is needed (see HBASE-2231)
-    return hdfsWal.append(info, key, edits, false);
+    return hdfsWal.append(info, key, edit, false);
   }
 
   @Override
@@ -140,37 +147,55 @@ public class KafkaClientWAL implements WAL {
   }
 
   @Override
+  @VisibleForTesting
   public Long startCacheFlush(byte[] encodedRegionName, Set<byte[]> families) {
-    return this.sequenceIdAccounting.startCacheFlush(encodedRegionName, families);
+    this.offsetAccounting.startKafkaCacheFlush(encodedRegionName, families);
+    return HConstants.NO_SEQNUM;
   }
 
   @Override
   public Long startCacheFlush(byte[] encodedRegionName, Map<byte[], Long> familyToSeq) {
-    for (byte[] family : familyToSeq.keySet()) {
-      // values of familyToSeq are mvcc txid, replace it with HConstants.NO_SEQNUM
-      familyToSeq.put(family, HConstants.NO_SEQNUM);
-    }
-    return this.sequenceIdAccounting.startCacheFlush(encodedRegionName, familyToSeq);
+    this.offsetAccounting.startKafkaCacheFlush(encodedRegionName, familyToSeq.keySet());
+    return HConstants.NO_SEQNUM;
   }
 
   @Override
   public void completeCacheFlush(byte[] encodedRegionName) {
-    this.sequenceIdAccounting.completeCacheFlush(encodedRegionName);
+    this.offsetAccounting.completeKafkaCacheFlush(encodedRegionName);
   }
 
   @Override
   public void abortCacheFlush(byte[] encodedRegionName) {
-    this.sequenceIdAccounting.abortCacheFlush(encodedRegionName);
+    this.offsetAccounting.abortKafkaCacheFlush(encodedRegionName);
   }
 
   @Override
   @VisibleForTesting
   public long getEarliestMemstoreSeqNum(byte[] encodedRegionName) {
-    return this.sequenceIdAccounting.getLowestSequenceId(encodedRegionName);
+    // do not use this with kafka wal
+    return HConstants.NO_SEQNUM;
   }
 
   @Override
   public long getEarliestMemstoreSeqNum(byte[] encodedRegionName, byte[] familyName) {
-    return this.sequenceIdAccounting.getLowestSequenceId(encodedRegionName, familyName);
+    // do not use this with kafka wal
+    return HConstants.NO_SEQNUM;
+  }
+
+  /**
+   * return the earliest offset of each partition after region flush
+   */
+  public Map<Integer, Long> getEarliestKakfaOffset(String table, String encodedName,
+      byte[] encodedRegionName) {
+    return this.offsetAccounting.getEarliestKakfaOffset(this.zkWatcher.get(), table,
+      encodedName, encodedRegionName);
+  }
+
+  public void setZooKeeperWatcher(ZooKeeperWatcher zkWatcher) {
+    this.zkWatcher.compareAndSet(null, zkWatcher);
+  }
+
+  public void heartbeatAcked() {
+    this.offsetAccounting.heartbeatAcked();
   }
 }

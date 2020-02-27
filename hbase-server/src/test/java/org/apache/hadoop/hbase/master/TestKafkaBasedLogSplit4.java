@@ -131,7 +131,7 @@ public class TestKafkaBasedLogSplit4 {
   @SuppressWarnings("unchecked")
   private static KafkaConsumer<byte[], byte[]> mockKafkaConsumer(int partition) throws IOException {
     KafkaConsumer<byte[], byte[]> consumer = Mockito.mock(KafkaConsumer.class);
-    List<PartitionInfo> partitions = new ArrayList<PartitionInfo>();
+    List<PartitionInfo> partitions = new ArrayList<PartitionInfo>(); // two partitions
     partitions.add(Mockito.mock(PartitionInfo.class));
     partitions.add(Mockito.mock(PartitionInfo.class));
     Mockito.when(consumer.partitionsFor(Mockito.anyString())).thenReturn(partitions);
@@ -235,14 +235,16 @@ public class TestKafkaBasedLogSplit4 {
     for (long i = 0; i < 5; i++) { // first region
       Put put = new Put(Bytes.toBytes("0000_row" + String.format("%02d",i)));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + String.format("%02d",i)));
-      put.setAttribute("OFFSET", Bytes.toBytes(i));
+      put.setAttribute("PART", Bytes.toBytes(0));
+      put.setAttribute("OFFSET", Bytes.toBytes(i + 1));
       table.put(put);
     }
     // second region
     for (long i = 0; i < 6; i++) {
       Put put = new Put(Bytes.toBytes("5000_row1" + i));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value1" + i));
-      put.setAttribute("OFFSET", Bytes.toBytes(i));
+      put.setAttribute("PART", Bytes.toBytes(1));
+      put.setAttribute("OFFSET", Bytes.toBytes(i + 1));
       table.put(put);
     }
     TEST_UTIL.flush(tn);
@@ -251,14 +253,16 @@ public class TestKafkaBasedLogSplit4 {
     for (long i = 5; i < 11; i++) { // first region
       Put put = new Put(Bytes.toBytes("0000_row" + String.format("%02d",i)));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + String.format("%02d",i)));
-      put.setAttribute("OFFSET", Bytes.toBytes(i));
+      put.setAttribute("PART", Bytes.toBytes(0));
+      put.setAttribute("OFFSET", Bytes.toBytes(i + 1));
       table.put(put);
     }
     // second region
     for (long i = 6; i < 10; i++) {
       Put put = new Put(Bytes.toBytes("5000_row1" + i));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + i));
-      put.setAttribute("OFFSET", Bytes.toBytes(i));
+      put.setAttribute("PART", Bytes.toBytes(1));
+      put.setAttribute("OFFSET", Bytes.toBytes(i + 1));
       table.put(put);
     }
 
@@ -269,8 +273,8 @@ public class TestKafkaBasedLogSplit4 {
     assertEquals(4, regionFlushids.size()); // meta + namespace + usertable(2 region)
     long flushId = regionFlushids.get(first.getRegionInfo().getEncodedNameAsBytes());
     long flushId2 = regionFlushids.get(second.getRegionInfo().getEncodedNameAsBytes());
-    assertEquals(4, flushId);
-    assertEquals(5, flushId2);
+    assertEquals(HConstants.NO_SEQNUM, flushId); // kafka wal dont update sequenceId
+    assertEquals(HConstants.NO_SEQNUM, flushId2);
     
     TEST_UTIL.getMiniHBaseCluster().killRegionServer(sn);
     TEST_UTIL.waitTableAvailable(tn);

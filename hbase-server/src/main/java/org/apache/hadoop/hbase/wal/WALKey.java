@@ -29,25 +29,28 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos;
+import org.apache.hadoop.hbase.protobuf.generated.WALProtos;
+import org.apache.hadoop.hbase.protobuf.generated.WALProtos.FamilyScope;
+import org.apache.hadoop.hbase.protobuf.generated.WALProtos.ScopeType;
 import org.apache.hadoop.hbase.regionserver.MultiVersionConcurrencyControl;
 import org.apache.hadoop.hbase.regionserver.SequenceId;
 // imports for things that haven't moved from regionserver.wal yet.
 import org.apache.hadoop.hbase.regionserver.wal.CompressionContext;
 import org.apache.hadoop.hbase.regionserver.wal.WALCellCodec;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
-import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos;
-import org.apache.hadoop.hbase.protobuf.generated.WALProtos;
-import org.apache.hadoop.hbase.protobuf.generated.WALProtos.FamilyScope;
-import org.apache.hadoop.hbase.protobuf.generated.WALProtos.ScopeType;
 import org.apache.hadoop.hbase.util.ByteStringer;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
+import org.apache.hadoop.hbase.util.ImmutableByteArray;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.ByteString;
 
 /**
  * A Key for an entry in the change log.
@@ -179,6 +182,9 @@ public class WALKey implements SequenceId, Comparable<WALKey> {
   private long nonceGroup = HConstants.NO_NONCE;
   private long nonce = HConstants.NO_NONCE;
   private MultiVersionConcurrencyControl mvcc;
+  // family -> (partition -> offset)
+  private ConcurrentHashMap<ImmutableByteArray, ConcurrentHashMap<Integer, Long>> offsets;
+
   /**
    * Set in a way visible to multiple threads; e.g. synchronized getter/setters.
    */
@@ -703,5 +709,13 @@ public class WALKey implements SequenceId, Comparable<WALKey> {
     if(walKey.hasOrigSequenceNumber()) {
       this.origLogSeqNum = walKey.getOrigSequenceNumber();
     }
+  }
+
+  public void setKafkaOffsets(ConcurrentHashMap<ImmutableByteArray, ConcurrentHashMap<Integer, Long>> offsets) {
+    this.offsets = offsets;
+  }
+
+  public ConcurrentHashMap<ImmutableByteArray, ConcurrentHashMap<Integer, Long>> getKafkaOffsets() {
+    return this.offsets;
   }
 }

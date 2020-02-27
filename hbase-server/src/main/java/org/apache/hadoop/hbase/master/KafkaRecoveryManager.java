@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.HConstants;
@@ -37,17 +37,18 @@ import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.coordination.ZKSplitLogManagerCoordination.TaskFinisher;
 import org.apache.hadoop.hbase.monitoring.MonitoredTask;
 import org.apache.hadoop.hbase.monitoring.TaskMonitor;
-import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.shaded.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.KafkaUtil;
+import org.apache.hadoop.hbase.zookeeper.ZKUtil;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.zookeeper.KeeperException;
 
 /**
  * Class use to do log replay from KAFKA
@@ -59,7 +60,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
   private final String kafkaServers;
   private KafkaConsumer<byte[],byte[]> TEST_CONSUMER;
   private AdminClient TEST_ADMIN;
-  private final long regionFlushInterval;
+  private final MasterServices masterService;
 
   public KafkaRecoveryManager(HMaster master) throws IOException {
     this(master, master, false);
@@ -69,8 +70,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
   public KafkaRecoveryManager(Server server, MasterServices masterService, boolean initCoordination) throws IOException {
     super(server, server.getConfiguration(), server, masterService, server.getServerName(), initCoordination);
     this.kafkaServers = server.getConfiguration().get(KafkaUtil.KAFKA_BROKER_SERVERS);
-    this.regionFlushInterval = server.getConfiguration().getLong(
-        HRegion.MEMSTORE_PERIODIC_FLUSH_INTERVAL, HRegion.DEFAULT_CACHE_FLUSH_INTERVAL);
+    this.masterService = masterService;
   }
 
   public void splitLogs(ServerName serverName, Set<HRegionInfo> regions, ServerManager sm)
@@ -89,59 +89,44 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
 
     try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer();
         AdminClient admin = getKafkaAdminClient()) {
-      Map<String, Integer> tablePartitions = new HashMap<>();
       Map<TopicPartition, Long> lastOffsets = new HashMap<>();
       int totalRecords = 0;
       for (HRegionInfo region : regions) {
         String table = region.getTable().getNameAsString();
         String kafkaTopic = KafkaUtil.getTableTopic(table);
         String consumerGroup = KafkaUtil.getConsumerGroup(table);
-        if (tablePartitions.get(table) == null) {
-          int partitionCnt = consumer.partitionsFor(kafkaTopic).size();
-          if (partitionCnt > KafkaUtil.PART_UPPER_LIMMIT) {
-            partitionCnt = KafkaUtil.PART_UPPER_LIMMIT;
-            LOG.warn("partition count has upper limit, should less than" + KafkaUtil.PART_UPPER_LIMMIT);
+        // iterator all region partition mappings
+        for (Map.Entry<Integer, Long> offsetInfo : getRegionPartitionMappings(consumer, sm, region).entrySet()) {
+          TopicPartition topicPartition = new TopicPartition(kafkaTopic, offsetInfo.getKey());
+          if (lastOffsets.get(topicPartition) == null) {
+            long lastOffset = HConstants.NO_SEQNUM;
+            try {
+              lastOffset = getConsumerLastOffset(admin, topicPartition, consumerGroup);
+            } catch (Throwable e) {
+              LOG.warn("error occured when get consumer's last offset." , e);
+              // fall back to partition's last offset
+              consumer.assign(Arrays.asList(topicPartition));
+              consumer.seekToEnd(Collections.singletonList(topicPartition));
+              lastOffset = consumer.position(topicPartition) -1;
+            }
+            lastOffsets.put(topicPartition, lastOffset);
           }
-          tablePartitions.put(table, partitionCnt);
-        }
-        int kafkaPartition = KafkaUtil.getTablePartition(Bytes.toString(region.getStartKey()),
-            tablePartitions.get(table));
-        TopicPartition topicPartition = new TopicPartition(kafkaTopic, kafkaPartition);
-        if (lastOffsets.get(topicPartition) == null) {
-          long lastOffset = HConstants.NO_SEQNUM;
-          try {
-            lastOffset = getConsumerLastOffset(admin, topicPartition, consumerGroup);
-          } catch (Throwable e) {
-            LOG.warn("error occured when get consumer's last offset." , e);
-            // fall back to partition's last offset
-            consumer.assign(Arrays.asList(topicPartition));
-            consumer.seekToEnd(Collections.singletonList(topicPartition));
-            lastOffset = consumer.position(topicPartition) -1;
-          }
-          lastOffsets.put(topicPartition, lastOffset);
-        }
-        long startOffset = sm.getLastFlushedSequenceId(region.getEncodedNameAsBytes()).getLastFlushedSequenceId();
-        if (startOffset <= 0) {
-          long timestamp = System.currentTimeMillis() - regionFlushInterval;
-          LOG.warn(region.getEncodedName() + "'s target start offset <= 0, seek with timestamp " + timestamp);
-          OffsetAndTimestamp offset = consumer.offsetsForTimes(
-              Collections.singletonMap(topicPartition, timestamp)).get(topicPartition);
-          startOffset = (offset == null ? 0 : offset.offset());
-        }
-        String startKey = Bytes.toString(region.getStartKey());
-        String endKey = Bytes.toString(region.getEndKey());
-        // taskName like : topic_partition_startOffset_endOffset_regionName-startKey-endKey
-        totalRecords += (lastOffsets.get(topicPartition) - startOffset);
-        StringBuilder taskName = new StringBuilder(kafkaTopic).append("_").append(kafkaPartition).append("_")
+          long startOffset = offsetInfo.getValue();
+          String startKey = Bytes.toString(region.getStartKey());
+          String endKey = Bytes.toString(region.getEndKey());
+          // taskName like : topic_partition_startOffset_endOffset_regionName-startKey-endKey
+          totalRecords += (lastOffsets.get(topicPartition) - startOffset);
+          StringBuilder taskName = new StringBuilder(kafkaTopic).append("_").append(offsetInfo.getKey()).append("_")
             .append(startOffset)
             .append("_").append(lastOffsets.get(topicPartition))
             .append("_").append(region.getEncodedName()).append("-")
             .append("".equals(startKey) ? "null" : startKey).append("-")
             .append("".equals(endKey) ? "null" : endKey);
-        if (!enqueueSplitTask(taskName.toString(), batch)) {
-          throw new IOException("duplicate log split scheduled for " + taskName);
+          if (!enqueueSplitTask(taskName.toString(), batch)) {
+            throw new IOException("duplicate log split scheduled for " + taskName);
+          }
+          LOG.info("enqueued split task : " + taskName);
         }
-        LOG.info("enqueued split task : " + taskName);
       }
       LOG.info("total replay kafka records : " + totalRecords);
     }
@@ -162,6 +147,88 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
         + (EnvironmentEdgeManager.currentTime() - t) + "ms";
     status.markComplete(msg);
     LOG.info(msg);
+  }
+
+  private void deleteVoliatePartition(String taskName) {
+    if (masterService.getZooKeeper() != null) {
+      try {
+        String[] taskInfo = taskName.split("_");
+        assert(taskInfo.length == SplitLogTask.KAFKA_TASK_FIELD_LEN);
+        String[] regionInfo = taskInfo[4].split("-"); // regionName-startKey-endKey
+        assert(regionInfo.length == 3);
+        RegionStates regionStates = masterService.getAssignmentManager().getRegionStates();
+        String table = regionStates.getRegionState(regionInfo[0]).getRegion().getTable().getNameAsString();
+        String tableZnode = ZKUtil.joinZNode(masterService.getZooKeeper().partitionZnode, table);
+        String regionZnode = ZKUtil.joinZNode(tableZnode, regionInfo[0]);
+        ZKUtil.deleteNodeRecursively(masterService.getZooKeeper(), regionZnode);
+      } catch (Throwable e) {
+        LOG.error("delete voilate partition mapping failed", e);
+      }
+    }
+  }
+
+  private Map<Integer, Long> getRegionPartitionMappings(KafkaConsumer<byte[], byte[]> consumer,
+      ServerManager sm, HRegionInfo region) {
+    Map<Integer, Long> offsets = new HashMap<>();
+    // heartbeat report
+    Map<Integer, Long> heartbeatInfo = sm.getLastFlushedKafkaOffsets(region.getEncodedName().getBytes());
+    if (heartbeatInfo != null && !heartbeatInfo.isEmpty()) {
+      if (LOG.isDebugEnabled()) {
+        for (Map.Entry<Integer, Long> offsetInfo : heartbeatInfo.entrySet()) {
+          LOG.debug("get region partition mapping info from heartbeat, partition is"
+            + offsetInfo.getKey() + ", offset is " + offsetInfo.getValue());
+        }
+      }
+      offsets.putAll(heartbeatInfo);
+    }
+    if (masterService.getZooKeeper() != null) {
+      try {
+        // load from persistance layer
+        getMappingFromZK(consumer, offsets, masterService.getZooKeeper().offsetZnode, region, false);
+        // load from volatile layer
+        getMappingFromZK(consumer, offsets, masterService.getZooKeeper().partitionZnode, region, true);
+      } catch (Exception e) {
+        LOG.warn("obtain region partition mapping error.", e);
+      }
+    }
+    return offsets;
+  }
+
+  private void getMappingFromZK(KafkaConsumer<byte[], byte[]> consumer, Map<Integer, Long> offsets,
+      String parent, HRegionInfo region, boolean isVolatile) throws KeeperException {
+    if (masterService.getZooKeeper() != null) {
+      String tableZnode = ZKUtil.joinZNode(parent, region.getTable().getNameAsString());
+      String regionZnode = ZKUtil.joinZNode(tableZnode, region.getEncodedName());
+      List<String> partitions = ZKUtil.listChildrenNoWatch(masterService.getZooKeeper(), regionZnode);
+      if (partitions != null && !partitions.isEmpty()) {
+        for (String partitionStr : partitions) { // iterator each partition
+          Integer partition = Integer.parseInt(partitionStr);
+          String partitionZnode = ZKUtil.joinZNode(regionZnode, partitionStr);
+          Long offset = Bytes.toLong(ZKUtil.getDataNoWatch(masterService.getZooKeeper(), partitionZnode, null));
+          if (!isVolatile) {
+            if (offsets.putIfAbsent(partition, offset) == null) {
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("get region partition mapping info from persistance znode, partition is"
+                    + partition + ", offset is " + offset);
+              }
+            }
+          } else if (!offsets.containsKey(partition)) {
+            long timestamp = System.currentTimeMillis() - 600 * 1000; // 10 minutes before
+            TopicPartition topicPartition = new TopicPartition(KafkaUtil.getTableTopic(
+              region.getTable().getNameAsString()), partition);
+            OffsetAndTimestamp offsetForTime = consumer.offsetsForTimes(
+              Collections.singletonMap(topicPartition, timestamp)).get(topicPartition);
+            long startOffset = (offsetForTime == null ? 0 : offsetForTime.offset());
+            if (offset > startOffset) {
+              LOG.info("get region partition mapping info from volatile znode, table ="
+                  + region.getTable().getNameAsString() + ", region = " + region.getEncodedName()
+                  + ", partition = " + partition + ", offset = " + offset);
+              offsets.putIfAbsent(partition, offset);
+            }
+          }
+        }
+      }
+    }
   }
 
   @VisibleForTesting
@@ -212,6 +279,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
       @Override
       public Status finish(ServerName workerName, String taskName) {
         LOG.info("Log recovery Task has finished, taskName is : " + taskName);
+        deleteVoliatePartition(taskName);
         // do old WALs cleanup in ServerCrashProcedure
         return Status.DONE;
       }

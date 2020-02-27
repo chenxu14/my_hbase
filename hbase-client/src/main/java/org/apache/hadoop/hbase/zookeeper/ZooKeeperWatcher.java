@@ -28,7 +28,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
@@ -38,7 +37,6 @@ import org.apache.hadoop.hbase.AuthUtil;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.ZooKeeperConnectionException;
-import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.security.Superusers;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.zookeeper.KeeperException;
@@ -124,6 +122,10 @@ public class ZooKeeperWatcher implements Watcher, Abortable, Closeable {
   public String tableLockZNode;
   // znode containing the state of recovering regions
   public String recoveringRegionsZNode;
+  // voiliate region partition mapping info
+  public String partitionZnode;
+  // region partition mapping info
+  public String offsetZnode;
   // znode containing namespace descriptors
   public static String namespaceZNode = "namespace";
 
@@ -214,6 +216,8 @@ public class ZooKeeperWatcher implements Watcher, Abortable, Closeable {
       ZKUtil.createAndFailSilent(this, backupMasterAddressesZNode);
       ZKUtil.createAndFailSilent(this, tableLockZNode);
       ZKUtil.createAndFailSilent(this, recoveringRegionsZNode);
+      ZKUtil.createAndFailSilent(this, partitionZnode);
+      ZKUtil.createAndFailSilent(this, offsetZnode);
     } catch (KeeperException e) {
       throw new ZooKeeperConnectionException(
           prefix("Unexpected KeeperException creating base node"), e);
@@ -464,6 +468,8 @@ public class ZooKeeperWatcher implements Watcher, Abortable, Closeable {
         conf.get("zookeeper.znode.recovering.regions", "recovering-regions"));
     namespaceZNode = ZKUtil.joinZNode(baseZNode,
         conf.get("zookeeper.znode.namespace", "namespace"));
+    partitionZnode = ZKUtil.joinZNode(baseZNode, "region-partition-volatile");
+    offsetZnode = ZKUtil.joinZNode(baseZNode, "region-partition-persistent");
   }
 
   /**

@@ -177,7 +177,8 @@ public class TestKafkaBasedLogSplit {
     for (long i = 0; i < 10; i++) {
       Put put = new Put(Bytes.toBytes("row" + i));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + i));
-      put.setAttribute("OFFSET", Bytes.toBytes(i));
+      put.setAttribute("PART", Bytes.toBytes(0));
+      put.setAttribute("OFFSET", Bytes.toBytes(i + 1));
       table.put(put);
     }
     TEST_UTIL.getMiniHBaseCluster().killRegionServer(sn);

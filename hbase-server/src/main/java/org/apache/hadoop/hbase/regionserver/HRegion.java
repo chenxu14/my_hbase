@@ -160,6 +160,7 @@ import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionInfoResponse.CompactionState;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ClientProtos;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ClientProtos.CoprocessorServiceCall;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.ClusterStatusProtos.KafkaOffset;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ClusterStatusProtos.RegionLoad;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ClusterStatusProtos.StoreSequenceId;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.SnapshotDescription;
@@ -183,6 +184,7 @@ import org.apache.hadoop.hbase.util.EncryptionTest;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.FSUtils;
 import org.apache.hadoop.hbase.util.HashedBytes;
+import org.apache.hadoop.hbase.util.ImmutableByteArray;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.util.ServerRegionReplicaUtil;
 import org.apache.hadoop.hbase.util.Threads;
@@ -1868,24 +1870,32 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
   }
 
   RegionLoad.Builder setCompleteSequenceId(RegionLoad.Builder regionLoadBldr) {
-    long lastFlushOpSeqIdLocal = this.lastFlushOpSeqId;
     byte[] encodedRegionName = this.getRegionInfo().getEncodedNameAsBytes();
     regionLoadBldr.clearStoreCompleteSequenceId();
-    long minSeqId = Long.MAX_VALUE;
-    for (byte[] familyName : this.stores.keySet()) {
-      long earliest = this.wal.getEarliestMemstoreSeqNum(encodedRegionName, familyName);
-      // Subtract - 1 to go earlier than the current oldest, unflushed edit in memstore; this will
-      // give us a sequence id that is for sure flushed. We want edit replay to start after this
-      // sequence id in this region. If NO_SEQNUM, use the regions maximum flush id.
-      long csid = (earliest == HConstants.NO_SEQNUM) ?
-          (this.isKafkaBasedWal ? 0 : lastFlushOpSeqIdLocal): earliest - 1;
-      if (csid < minSeqId) {
-        minSeqId = csid;
+    regionLoadBldr.clearKafkaOffset();
+    if (isKafkaBasedWal) {
+      Map<Integer, Long> offsets = ((KafkaClientWAL) wal).getEarliestKakfaOffset(
+        this.getTableDesc().getTableName().getNameAsString(),
+        this.getRegionInfo().getEncodedName(), encodedRegionName);
+      for(Map.Entry<Integer, Long> offset : offsets.entrySet()) {
+        regionLoadBldr.addKafkaOffset(KafkaOffset.newBuilder().setPartition(offset.getKey())
+          .setOffset(offset.getValue()).build());
       }
-      regionLoadBldr.addStoreCompleteSequenceId(StoreSequenceId.newBuilder()
-          .setFamilyName(UnsafeByteOperations.unsafeWrap(familyName)).setSequenceId(csid).build());
+      regionLoadBldr.setCompleteSequenceId(HConstants.NO_SEQNUM);
+    } else {
+      long lastFlushOpSeqIdLocal = this.lastFlushOpSeqId;
+      for (byte[] familyName : this.stores.keySet()) {
+        long earliest = this.wal.getEarliestMemstoreSeqNum(encodedRegionName, familyName);
+        // Subtract - 1 to go earlier than the current oldest, unflushed edit in memstore; this will
+        // give us a sequence id that is for sure flushed. We want edit replay to start after this
+        // sequence id in this region. If NO_SEQNUM, use the regions maximum flush id.
+        long csid = (earliest == HConstants.NO_SEQNUM)? lastFlushOpSeqIdLocal: earliest - 1;
+        regionLoadBldr.addStoreCompleteSequenceId(StoreSequenceId.newBuilder()
+            .setFamilyName(UnsafeByteOperations.unsafeWrap(familyName)).setSequenceId(csid).build());
+      }
+      regionLoadBldr.setCompleteSequenceId(getMaxFlushedSeqId());
     }
-    return regionLoadBldr.setCompleteSequenceId(isKafkaBasedWal ? minSeqId : getMaxFlushedSeqId());
+    return regionLoadBldr;
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -2188,8 +2198,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     long earliest = this.wal.getEarliestMemstoreSeqNum(getRegionInfo().getEncodedNameAsBytes(),
       store.getFamily().getName()) - 1;
     // if kafka wal, seqId & mvcc are not same
-    if (!(wal instanceof KafkaClientWAL) && earliest > 0 &&
-        earliest + flushPerChanges < mvcc.getReadPoint()) {
+    if (earliest > 0 && earliest + flushPerChanges < mvcc.getReadPoint()) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Flush column family " + store.getColumnFamilyName() + " of " +
           getRegionInfo().getEncodedName() + " because unflushed sequenceid=" + earliest +
@@ -3249,7 +3258,10 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
       }
 
       // STEP 3. Build WAL edit
-      long smallestOffset = Long.MAX_VALUE;
+      ConcurrentHashMap<ImmutableByteArray, ConcurrentHashMap<Integer, Long>> smallestOffsets =
+          new ConcurrentHashMap<>(); // family -> (partition -> smallestOffset)
+      // since each rowkey will be put only by one consumer, there will be no race condition with the same rowlock
+      // and smallestOffsets are incrementaly
       walEdit = new WALEdit(cellCount, replay);
       Durability durability = Durability.USE_DEFAULT;
       for (int i = firstIndex; i < lastIndexExclusive; i++) {
@@ -3261,15 +3273,26 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
 
         if (wal instanceof KafkaClientWAL) {
           byte[] offsetBytes = m.getAttribute("OFFSET");
-          if (offsetBytes != null) {
+          byte[] partBytes = m.getAttribute("PART");
+          if (offsetBytes != null && partBytes != null) {
             try {
-              long offset = Bytes.toLong(offsetBytes);
-              if (offset < smallestOffset) {
-                smallestOffset = offset;
+              Integer part = Bytes.toInt(partBytes);
+              Long offset = Bytes.toLong(offsetBytes);
+              for (byte[] family : m.getFamilyCellMap().keySet()) { // iterator family
+                ImmutableByteArray familyObj = ImmutableByteArray.wrap(family);
+                smallestOffsets.putIfAbsent(familyObj, new ConcurrentHashMap<>());
+                Map<Integer, Long> smallestOffsetsPerFam = smallestOffsets.get(familyObj);
+                smallestOffsetsPerFam.putIfAbsent(part, offset);
+                if (offset < smallestOffsetsPerFam.get(part)) {
+                  smallestOffsetsPerFam.put(part, offset);
+                }
               }
             } catch (Throwable e) {
               LOG.warn(e.getMessage(), e);
             }
+          } else {
+            LOG.debug("No kafka offset find, may lose data when RS shutdown. table is "
+                + this.getTableDesc().getTableName().getNameAsString());
           }
         }
 
@@ -3329,12 +3352,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
 
         // if use KafkaWAL client should pass OFFSET info
         if (wal instanceof KafkaClientWAL) {
-          if (smallestOffset == Long.MAX_VALUE) {
-            LOG.warn("No kafka offset find, may lose data when RS shutdown. table is "
-                + this.getTableDesc().getTableName().getNameAsString());
-          } else {
-            walKey.setSequenceId(smallestOffset);
-          }
+          walKey.setKafkaOffsets(smallestOffsets);
         }
         try {
           long txid = this.wal.appendData(this.getRegionInfo(), walKey, walEdit);

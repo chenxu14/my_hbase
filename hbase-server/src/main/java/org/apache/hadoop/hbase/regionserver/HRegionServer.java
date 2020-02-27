@@ -118,6 +118,7 @@ import org.apache.hadoop.hbase.regionserver.compactions.CompactionProgress;
 import org.apache.hadoop.hbase.regionserver.handler.CloseMetaHandler;
 import org.apache.hadoop.hbase.regionserver.handler.CloseRegionHandler;
 import org.apache.hadoop.hbase.regionserver.handler.RegionReplicaFlushHandler;
+import org.apache.hadoop.hbase.regionserver.wal.KafkaClientWAL;
 import org.apache.hadoop.hbase.regionserver.wal.MetricsWAL;
 import org.apache.hadoop.hbase.regionserver.wal.WALActionsListener;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationLoad;
@@ -1182,6 +1183,12 @@ public class HRegionServer extends HasThread implements
       request.setServer(ProtobufUtil.toServerName(sn));
       request.setLoad(sl);
       rss.regionServerReport(null, request.build());
+      // do ack to KafkaWal, in order to update region-partition-mapping
+      for (WAL wal : this.getWALs()) {
+        if (wal instanceof KafkaClientWAL) {
+          ((KafkaClientWAL) wal).heartbeatAcked();
+        }
+      }
     } catch (ServiceException se) {
       IOException ioe = ProtobufUtil.getRemoteException(se);
       if (ioe instanceof YouAreDeadException) {
@@ -1935,6 +1942,10 @@ public class HRegionServer extends HasThread implements
       wal = walFactory.getWAL(regionInfo.getEncodedNameAsBytes(), namespace);
     }
     walRoller.addWAL(wal);
+    if (wal instanceof KafkaClientWAL) {
+      // KafkaClientWAL can use this upload region-partition-mapping to ZK 
+      ((KafkaClientWAL) wal).setZooKeeperWatcher(this.getZooKeeper());
+    }
     return wal;
   }
 

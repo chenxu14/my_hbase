@@ -179,7 +179,8 @@ public class TestKafkaBasedLogSplit2 {
     for (long i = 0; i < 10; i++) {
       Put put = new Put(Bytes.toBytes("row" + String.format("%04d",i)));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + String.format("%04d",i)));
-      put.setAttribute("OFFSET", Bytes.toBytes(i));
+      put.setAttribute("PART", Bytes.toBytes(0));
+      put.setAttribute("OFFSET", Bytes.toBytes(i + 1));
       table.put(put);
     }
     TEST_UTIL.flush(tn);
@@ -187,7 +188,8 @@ public class TestKafkaBasedLogSplit2 {
     for (long i = 10; i < 20; i++) {
       Put put = new Put(Bytes.toBytes("row" + String.format("%04d",i)));
       put.addColumn(FAMILYNAME, COLNAME, Bytes.toBytes("value" + String.format("%04d",i)));
-      put.setAttribute("OFFSET", Bytes.toBytes(i));
+      put.setAttribute("PART", Bytes.toBytes(0));
+      put.setAttribute("OFFSET", Bytes.toBytes(i + 1));
       table.put(put);
     }
     // make sure RS has report flushId to master 
@@ -197,8 +199,8 @@ public class TestKafkaBasedLogSplit2 {
     Map<byte[], Long> regionFlushids = serverMgr.getFlushedSequenceIdByRegion();
     assertEquals(3, regionFlushids.size()); // meta + namespace + usertable(1 region)
     long flushId = regionFlushids.get(region.getRegionInfo().getEncodedNameAsBytes());
-    assertEquals(9, flushId);
-    
+    assertEquals(HConstants.NO_SEQNUM, flushId); // kafka wal dont update sequenceId
+
     TEST_UTIL.getMiniHBaseCluster().killRegionServer(sn);
     TEST_UTIL.waitTableAvailable(tn);
 

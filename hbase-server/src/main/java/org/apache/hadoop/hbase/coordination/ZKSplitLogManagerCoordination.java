@@ -597,14 +597,16 @@ public class ZKSplitLogManagerCoordination extends ZooKeeperListener implements
 
   @Override
   public void nodeDataChanged(String path) {
-    if (!ZKSplitLog.isRescanNode(watcher, path)) {
-      Type taskType = SplitLogTask.getTaskType(path);
-      Task task = details.get(taskType).getTasks().get(path);
-      if (task != null) {
-        task.heartbeatNoDetails(EnvironmentEdgeManager.currentTime());
+    if (ZKSplitLog.isTaskPath(watcher, path)) {
+      if (!ZKSplitLog.isRescanNode(watcher, path)) {
+        Type taskType = SplitLogTask.getTaskType(path);
+        Task task = details.get(taskType).getTasks().get(path);
+        if (task != null) {
+          task.heartbeatNoDetails(EnvironmentEdgeManager.currentTime());
+        }
       }
+      getDataSetWatch(path, zkretries);
     }
-    getDataSetWatch(path, zkretries);
   }
 
   /**
