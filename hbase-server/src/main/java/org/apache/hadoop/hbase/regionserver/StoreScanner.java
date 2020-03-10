@@ -444,10 +444,16 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
     }
   }
 
+  @VisibleForTesting
   protected void resetKVHeap(List<? extends KeyValueScanner> scanners,
       CellComparator comparator) throws IOException {
     // Combine all seeked scanners with a heap
-    heap = new KeyValueHeap(scanners, comparator);
+    heap = newKVHeap(scanners, comparator);
+  }
+
+  protected KeyValueHeap newKVHeap(List<? extends KeyValueScanner> scanners,
+      CellComparator comparator) throws IOException {
+    return new KeyValueHeap(scanners, comparator);
   }
 
   /**
@@ -1047,7 +1053,7 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
       newCurrentScanners = new ArrayList<>(fileScanners.size() + memstoreScanners.size());
       newCurrentScanners.addAll(fileScanners);
       newCurrentScanners.addAll(memstoreScanners);
-      newHeap = new KeyValueHeap(newCurrentScanners, store.getComparator());
+      newHeap = newKVHeap(newCurrentScanners, store.getComparator());
     } catch (Exception e) {
       LOG.warn("failed to switch to stream read", e);
       if (fileScanners != null) {

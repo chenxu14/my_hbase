@@ -32,6 +32,7 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
@@ -596,5 +597,14 @@ public class TestFromClientSide3 {
       latch.countDown();
       return s;
     }
+  }
+
+  static byte[] generateHugeValue(int size) {
+    Random rand = ThreadLocalRandom.current();
+    byte[] value = new byte[size];
+    for (int i = 0; i < value.length; i++) {
+      value[i] = (byte) rand.nextInt(256);
+    }
+    return value;
   }
 }
