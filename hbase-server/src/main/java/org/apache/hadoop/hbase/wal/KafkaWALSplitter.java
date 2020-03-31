@@ -77,11 +77,11 @@ public class KafkaWALSplitter extends WALSplitter{
     outputSink.startWriterThreads();
     // task format : topic_partition_startOffset_endOffset_regionName-startKey-endKey
     taskName = URLDecoder.decode(taskName, "UTF-8");
-    String[] taskInfo = taskName.split("_");
+    String[] taskInfo = taskName.split(SplitLogTask.KAFKA_TASK_SPLITER);
     assert(taskInfo.length == SplitLogTask.KAFKA_TASK_FIELD_LEN);
     long startOffset = Long.parseLong(taskInfo[2]);
     long endOffset = Long.parseLong(taskInfo[3]);
-    String[] regionInfo = taskInfo[4].split("-"); // regionName-startKey-endKey
+    String[] regionInfo = taskInfo[4].split(SplitLogTask.REGION_ROWKEY_SPLITER); // regionName-startKey-endKey
     assert(regionInfo.length == 3);
     try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer(taskInfo[0],
       Integer.parseInt(taskInfo[1]), startOffset)) {

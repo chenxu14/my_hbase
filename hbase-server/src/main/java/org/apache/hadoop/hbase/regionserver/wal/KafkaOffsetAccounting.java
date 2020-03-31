@@ -198,7 +198,7 @@ class KafkaOffsetAccounting {
           (lastHeartbeat.get() == null || lastHeartbeat.get().get(encodedRegionName) == null)) {
         // first heartbeat, upload mapping info to ZK
         String regionZnode = createRegionZNode(zkWatcher, zkWatcher.offsetZnode, table, encodedName);
-        LOG.info("first heartbeat to HMaster, persistance the regopn partition mapping, regions is : "
+        LOG.info("first heartbeat to HMaster, persistance the region partition mapping, regions is : "
           + encodedName + ", table is : " + table);
         for (Map.Entry<Integer, Long> offsetInfo : offsets.entrySet()) {
           updatePartitionOffset(zkWatcher, regionZnode, offsetInfo.getKey(), offsetInfo.getValue());
