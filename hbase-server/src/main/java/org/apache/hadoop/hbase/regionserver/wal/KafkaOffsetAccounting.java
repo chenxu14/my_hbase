@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -116,7 +117,8 @@ class KafkaOffsetAccounting {
     try {
       for (Map.Entry<Integer, Long> offsetInfo : offsets.entrySet()) {
         String regionZnode = createRegionZNode(zkWatcher, zkWatcher.partitionZnode, table, encodeName);
-        LOG.info("new region partition mapping find, persisitance it as voliate znode.");
+        LOG.info("new region partition mapping find, persisitance it as voliate znode, region is " +
+            encodeName + ", partition is " + offsetInfo.getKey() + ", offset is " + offsetInfo.getValue());
         updatePartitionOffset(zkWatcher, regionZnode, offsetInfo.getKey(), offsetInfo.getValue());
       }
     } catch (KeeperException e) {
@@ -196,12 +198,20 @@ class KafkaOffsetAccounting {
     try {
       if (zkWatcher != null &&
           (lastHeartbeat.get() == null || lastHeartbeat.get().get(encodedRegionName) == null)) {
-        // first heartbeat, upload mapping info to ZK
+        // first heartbeat, load history first
         String regionZnode = createRegionZNode(zkWatcher, zkWatcher.offsetZnode, table, encodedName);
-        LOG.info("first heartbeat to HMaster, persistance the region partition mapping, regions is : "
-          + encodedName + ", table is : " + table);
+        List<String> partitions = ZKUtil.listChildrenNoWatch(zkWatcher, regionZnode);
+        // upload mapping info to ZK
         for (Map.Entry<Integer, Long> offsetInfo : offsets.entrySet()) {
+          LOG.info("first heartbeat to HMaster, persistance the region partition mapping, regions is : "
+              + encodedName + ", partition is : " + offsetInfo.getKey() + ", offset is " + offsetInfo.getValue());
           updatePartitionOffset(zkWatcher, regionZnode, offsetInfo.getKey(), offsetInfo.getValue());
+          partitions.remove(offsetInfo.getKey().toString()); // remove from history
+        }
+        for (String partition : partitions) {
+          LOG.info("partition " + partition + " of region " + encodedName +
+              " is a history mapping, may invalid after logsplit, remove it.");
+          ZKUtil.deleteNodeFailSilent(zkWatcher, ZKUtil.joinZNode(regionZnode, partition));
         }
       } else {
         Map<Integer, Long> oldOffsets = lastHeartbeat.get().get(encodedRegionName);
@@ -217,16 +227,14 @@ class KafkaOffsetAccounting {
             regionZnode = createRegionZNode(zkWatcher, zkWatcher.offsetZnode, table, encodedName);
             if (!oldParts.contains(part)) {
               // new add mapping, should persist it
-              LOG.info("new region partition mapping find during heartbeat, persist it to ZK, regions is : "
-                  + encodedName);
+              LOG.info("new region partition mapping find during heartbeat, persist it to ZK, regions is "
+                  + encodedName + ", partition is " + part + ", offset is " + offsets.get(part));
               updatePartitionOffset(zkWatcher, regionZnode, part, offsets.get(part));
             } else if (offsets.get(part) > oldOffsets.get(part)) {
               // new offset bigger than before, persist it
               oldParts.remove(part);
-              if (LOG.isDebugEnabled()) {
-                LOG.debug("new offset bigger than before, persist it, regions is : "
-                    + encodedName + ", table is : " + table);
-              }
+              LOG.info("new offset bigger than before, persist it, regions is : "
+                  + encodedName + ", table is : " + table);
               updatePartitionOffset(zkWatcher, regionZnode, part, offsets.get(part));
             }
           }

@@ -103,12 +103,26 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
       try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer();
           AdminClient admin = getKafkaAdminClient()) {
         int totalRecords = 0;
+        StringBuilder partitions, startOffsets, endOffsets;
         for (HRegionInfo region : regions) { // TODO adjust task generation granularity
           String table = region.getTable().getNameAsString();
           String kafkaTopic = KafkaUtil.getTableTopic(table);
           String consumerGroup = KafkaUtil.getConsumerGroup(table);
           // iterator all region partition mappings
-          for (Map.Entry<Integer, Long> offsetInfo : getRegionPartitionMappings(consumer, sm, region).entrySet()) {
+          partitions = new StringBuilder();
+          startOffsets = new StringBuilder();
+          endOffsets = new StringBuilder();
+          boolean first = true;
+          Map<Integer, Long> regionPartitionMapping = getRegionPartitionMappings(consumer, sm, region);
+          if (LOG.isDebugEnabled()) {
+            StringBuilder info = new StringBuilder("region partition mapping info with ")
+                .append(region.getEncodedName()).append(", ");
+            for (Map.Entry<Integer, Long> offsetInfo : regionPartitionMapping.entrySet()) {
+              info.append(offsetInfo.getKey()).append("->").append(offsetInfo.getValue()).append(";");
+            }
+            LOG.debug(info.toString());
+          }
+          for (Map.Entry<Integer, Long> offsetInfo : regionPartitionMapping.entrySet()) {
             TopicPartition topicPartition = new TopicPartition(kafkaTopic, offsetInfo.getKey());
             if (lastOffsets.get(topicPartition) == null) {
               long lastOffset = HConstants.NO_SEQNUM;
@@ -123,19 +137,30 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
               }
               lastOffsets.put(topicPartition, lastOffset);
             }
-            long startOffset = offsetInfo.getValue();
+            // kafka partition info
+            if (!first) {
+            	partitions.append(SplitLogTask.FIELD_INNER_SPLITER);
+            	startOffsets.append(SplitLogTask.FIELD_INNER_SPLITER);
+            	endOffsets.append(SplitLogTask.FIELD_INNER_SPLITER);
+            }
+            partitions.append(offsetInfo.getKey());
+            startOffsets.append(offsetInfo.getValue());
+            endOffsets.append(lastOffsets.get(topicPartition));
+            totalRecords += (lastOffsets.get(topicPartition) - offsetInfo.getValue());
+            first = false;
+          }
+          if (partitions.length() > 0) {
+            // taskName like : topic__partition*__startOffset*__endOffset*__regionName--startKey--endKey
             String startKey = Bytes.toString(region.getStartKey());
             String endKey = Bytes.toString(region.getEndKey());
-            // taskName like : topic__partition__startOffset__endOffset__regionName--startKey--endKey
-            totalRecords += (lastOffsets.get(topicPartition) - startOffset);
-            StringBuilder taskName = new StringBuilder(kafkaTopic).append(SplitLogTask.KAFKA_TASK_SPLITER)
-              .append(offsetInfo.getKey()).append(SplitLogTask.KAFKA_TASK_SPLITER)
-              .append(startOffset)
-              .append(SplitLogTask.KAFKA_TASK_SPLITER).append(lastOffsets.get(topicPartition))
-              .append(SplitLogTask.KAFKA_TASK_SPLITER).append(region.getEncodedName()).append(SplitLogTask.REGION_ROWKEY_SPLITER)
-              .append("".equals(startKey) ? "null" : startKey).append(SplitLogTask.REGION_ROWKEY_SPLITER)
-              .append("".equals(endKey) ? "null" : endKey);
-            if (!enqueueSplitTask(taskName.toString(), batch)) {
+            StringBuilder taskName = new StringBuilder(kafkaTopic).append(SplitLogTask.TASK_FIELD_SPLITER)
+                .append(partitions).append(SplitLogTask.TASK_FIELD_SPLITER) // partitions
+                .append(startOffsets).append(SplitLogTask.TASK_FIELD_SPLITER) // startOffsets
+                .append(endOffsets).append(SplitLogTask.TASK_FIELD_SPLITER) // endOffsets
+                .append(region.getEncodedName()).append(SplitLogTask.FIELD_INNER_SPLITER) // regionName
+                .append("".equals(startKey) ? "null" : startKey).append(SplitLogTask.FIELD_INNER_SPLITER) // startKey
+                .append("".equals(endKey) ? "null" : endKey); // endKey
+            if (enqueueSplitTask(taskName.toString(), batch)) {
               LOG.info("enqueued split task : " + taskName);
             }
           }
@@ -177,9 +202,9 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
   private void deleteVoliatePartition(String taskName) {
     if (masterService.getZooKeeper() != null) {
       try {
-        String[] taskInfo = taskName.split(SplitLogTask.KAFKA_TASK_SPLITER);
+        String[] taskInfo = taskName.split(SplitLogTask.TASK_FIELD_SPLITER);
         assert(taskInfo.length == SplitLogTask.KAFKA_TASK_FIELD_LEN);
-        String[] regionInfo = taskInfo[4].split(SplitLogTask.REGION_ROWKEY_SPLITER); // regionName-startKey-endKey
+        String[] regionInfo = taskInfo[4].split(SplitLogTask.FIELD_INNER_SPLITER); // regionName-startKey-endKey
         assert(regionInfo.length == 3);
         RegionStates regionStates = masterService.getAssignmentManager().getRegionStates();
         String table = regionStates.getRegionState(regionInfo[0]).getRegion().getTable().getNameAsString();
@@ -244,7 +269,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
             OffsetAndTimestamp offsetForTime = consumer.offsetsForTimes(
               Collections.singletonMap(topicPartition, timestamp)).get(topicPartition);
             long startOffset = (offsetForTime == null ? 0 : offsetForTime.offset());
-            if (offset > startOffset) {
+            if (offset >= startOffset) {
               LOG.info("get region partition mapping info from volatile znode, table ="
                   + region.getTable().getNameAsString() + ", region = " + region.getEncodedName()
                   + ", partition = " + partition + ", offset = " + offset);

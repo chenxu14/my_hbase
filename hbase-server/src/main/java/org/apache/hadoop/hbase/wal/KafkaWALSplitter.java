@@ -77,67 +77,72 @@ public class KafkaWALSplitter extends WALSplitter{
     outputSink.startWriterThreads();
     // task format : topic_partition_startOffset_endOffset_regionName-startKey-endKey
     taskName = URLDecoder.decode(taskName, "UTF-8");
-    String[] taskInfo = taskName.split(SplitLogTask.KAFKA_TASK_SPLITER);
+    String[] taskInfo = taskName.split(SplitLogTask.TASK_FIELD_SPLITER);
     assert(taskInfo.length == SplitLogTask.KAFKA_TASK_FIELD_LEN);
-    long startOffset = Long.parseLong(taskInfo[2]);
-    long endOffset = Long.parseLong(taskInfo[3]);
-    String[] regionInfo = taskInfo[4].split(SplitLogTask.REGION_ROWKEY_SPLITER); // regionName-startKey-endKey
+    String[] partitions = taskInfo[1].split(SplitLogTask.FIELD_INNER_SPLITER);
+    String[] startOffsets = taskInfo[2].split(SplitLogTask.FIELD_INNER_SPLITER);
+    String[] endOffsets = taskInfo[3].split(SplitLogTask.FIELD_INNER_SPLITER);
+    String[] regionInfo = taskInfo[4].split(SplitLogTask.FIELD_INNER_SPLITER); // regionName-startKey-endKey
     assert(regionInfo.length == 3);
-    try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer(taskInfo[0],
-      Integer.parseInt(taskInfo[1]), startOffset)) {
-      status.setStatus("Opening kafka consumer.");
-      if (reporter != null && !reporter.progress()) {
-        progress_failed = true;
-        return false;
-      }
-      int loop = 0;
-      LOOP : while (true) {
-        boolean reachEnd = false;
-        ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofSeconds(10));
-        if (records.isEmpty()) {
-          loop++;
-          if (loop > 3) {
-            LOG.warn(taskName + " can't reach to the target offset " + endOffset + " after 3 times retry !");
-            break LOOP;
+    try {
+      for (int i = 0; i < partitions.length; i++) {
+        try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer(taskInfo[0],
+            Integer.parseInt(partitions[i]), Integer.parseInt(startOffsets[i]))) {
+          status.setStatus("Opening kafka consumer.");
+          if (reporter != null && !reporter.progress()) {
+            progress_failed = true;
+            return false;
           }
-        } else {
-          loop = 0; // reset loop, since we have records
-          for (ConsumerRecord<byte[], byte[]> record : records) {
-            if (record.offset() == endOffset) {
-              reachEnd = true;
-            }
-            try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(record.value()))) {
-              WALEdit walEdit = new WALEdit();
-              walEdit.readFields(dis);
-              if (walEdit.getCells().size() > 0) {
-                Cell cell = walEdit.getCells().get(0); // With KafkaWAL each WALEntry only corresponds to one record
-                String rowkey = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
-                if (!isRowkeyInRange(rowkey, regionInfo[1], regionInfo[2])) {
-                  if (LOG.isDebugEnabled()) {
-                    LOG.debug("Ignored rowkey:" + rowkey + ", startKey : " + regionInfo[1]
-                        + ", endKey : " + regionInfo[2]);
-                  }
-                  editsSkipped++; // record not belong to this region
-                  continue;
-                }
-                WALKey key = new WALKey(Bytes.toBytes(regionInfo[0]), TableName.valueOf(KafkaUtil.getTopicTable(taskInfo[0])),
-                    HConstants.NO_SEQNUM, record.timestamp(), HConstants.DEFAULT_CLUSTER_ID);
-                entryBuffers.appendEntry(new Entry(key, walEdit));
-                editsCount++;
-                if (editsCount % interval == 0) {
-                  status.setStatus("Split " + editsCount + " edits, skipped " + editsSkipped + " edits.");
-                  if (reporter != null && !reporter.progress()) {
-                    progress_failed = true;
-                    return false;
-                  }
-                }
-              } else {
-                editsSkipped++;
-                continue;
-              }
-            } finally {
-              if (reachEnd) {
+          int loop = 0;
+          LOOP : while (true) {
+            boolean reachEnd = false;
+            ConsumerRecords<byte[], byte[]> records = consumer.poll(Duration.ofSeconds(10));
+            if (records.isEmpty()) {
+              loop++;
+              if (loop > 3) {
+                LOG.warn(taskName + " can't reach to the target offset " + endOffsets[i] + " after 3 times retry !");
                 break LOOP;
+              }
+            } else {
+              loop = 0; // reset loop, since we have records
+              for (ConsumerRecord<byte[], byte[]> record : records) {
+                if (record.offset() == Integer.parseInt(endOffsets[i])) {
+                  reachEnd = true;
+                }
+                try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(record.value()))) {
+                  WALEdit walEdit = new WALEdit();
+                  walEdit.readFields(dis);
+                  if (walEdit.getCells().size() > 0) {
+                    Cell cell = walEdit.getCells().get(0); // With KafkaWAL each WALEntry only corresponds to one record
+                    String rowkey = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
+                    if (!isRowkeyInRange(rowkey, regionInfo[1], regionInfo[2])) {
+                      if (LOG.isDebugEnabled()) {
+                        LOG.debug("Ignored rowkey:" + rowkey + ", startKey : " + regionInfo[1]
+                            + ", endKey : " + regionInfo[2]);
+                      }
+                      editsSkipped++; // record not belong to this region
+                      continue;
+                    }
+                    WALKey key = new WALKey(Bytes.toBytes(regionInfo[0]), TableName.valueOf(KafkaUtil.getTopicTable(taskInfo[0])),
+                        HConstants.NO_SEQNUM, record.timestamp(), HConstants.DEFAULT_CLUSTER_ID);
+                    entryBuffers.appendEntry(new Entry(key, walEdit));
+                    editsCount++;
+                    if (editsCount % interval == 0) {
+                      status.setStatus("Split " + editsCount + " edits, skipped " + editsSkipped + " edits.");
+                      if (reporter != null && !reporter.progress()) {
+                        progress_failed = true;
+                        return false;
+                      }
+                    }
+                  } else {
+                    editsSkipped++;
+                    continue;
+                  }
+                } finally {
+                  if (reachEnd) {
+                    break LOOP;
+                  }
+                }
               }
             }
           }
@@ -155,8 +160,7 @@ public class KafkaWALSplitter extends WALSplitter{
       try {
         // Set progress_failed to true as the immediate following statement will reset its value
         // when finishWritingAndClose() throws exception, progress_failed has the right value
-        progress_failed = true;
-        progress_failed = outputSink.finishWritingAndClose() == null;
+        progress_failed = outputSink.finishWritingAndClose() == null | progress_failed;
       } finally {
         String msg =
             "Processed " + editsCount + " edits across " + outputSink.getNumberOfRecoveredRegions()
