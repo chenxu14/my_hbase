@@ -116,7 +116,7 @@ public class TestKafkaBasedLogSplit extends KafkaBasedLogSplitTest {
         i++;
         result = scanner.next();
       }
-      assertEquals(i, 10);
+      assertEquals(10, i);
     }
     assertEquals(ZKUtil.listChildrenNoWatch(TEST_UTIL.getZooKeeperWatcher(), "/hbase/splitWAL").size(), 0);
   }

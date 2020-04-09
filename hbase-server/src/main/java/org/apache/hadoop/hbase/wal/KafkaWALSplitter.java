@@ -33,8 +33,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.KafkaSplitTask;
 import org.apache.hadoop.hbase.RemoteExceptionHandler;
-import org.apache.hadoop.hbase.SplitLogTask;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.monitoring.TaskMonitor;
@@ -77,16 +77,13 @@ public class KafkaWALSplitter extends WALSplitter{
     outputSink.startWriterThreads();
     // task format : topic_partition_startOffset_endOffset_regionName-startKey-endKey
     taskName = URLDecoder.decode(taskName, "UTF-8");
-    String[] taskInfo = taskName.split(SplitLogTask.TASK_FIELD_SPLITER);
-    assert(taskInfo.length == SplitLogTask.KAFKA_TASK_FIELD_LEN);
-    String[] partitions = taskInfo[1].split(SplitLogTask.FIELD_INNER_SPLITER);
-    String[] startOffsets = taskInfo[2].split(SplitLogTask.FIELD_INNER_SPLITER);
-    String[] endOffsets = taskInfo[3].split(SplitLogTask.FIELD_INNER_SPLITER);
-    String[] regionInfo = taskInfo[4].split(SplitLogTask.FIELD_INNER_SPLITER); // regionName-startKey-endKey
-    assert(regionInfo.length == 3);
+    KafkaSplitTask task = KafkaSplitTask.parseFrom(taskName);
+    String[] partitions = task.getPartitions().split(KafkaSplitTask.FIELD_INNER_SPLITER);
+    String[] startOffsets = task.getStartOffsets().split(KafkaSplitTask.FIELD_INNER_SPLITER);
+    String[] endOffsets = task.getEndOffsets().split(KafkaSplitTask.FIELD_INNER_SPLITER);
     try {
       for (int i = 0; i < partitions.length; i++) {
-        try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer(taskInfo[0],
+        try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer(task.getTopic(),
             Integer.parseInt(partitions[i]), Integer.parseInt(startOffsets[i]))) {
           status.setStatus("Opening kafka consumer.");
           if (reporter != null && !reporter.progress()) {
@@ -115,15 +112,16 @@ public class KafkaWALSplitter extends WALSplitter{
                   if (walEdit.getCells().size() > 0) {
                     Cell cell = walEdit.getCells().get(0); // With KafkaWAL each WALEntry only corresponds to one record
                     String rowkey = Bytes.toString(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
-                    if (!isRowkeyInRange(rowkey, regionInfo[1], regionInfo[2])) {
+                    if (!isRowkeyInRange(rowkey, task.getStartKey(), task.getEndkey())) {
                       if (LOG.isDebugEnabled()) {
-                        LOG.debug("Ignored rowkey:" + rowkey + ", startKey : " + regionInfo[1]
-                            + ", endKey : " + regionInfo[2]);
+                        LOG.debug("Ignored rowkey:" + rowkey + ", startKey : " + task.getStartKey()
+                            + ", endKey : " + task.getEndkey());
                       }
                       editsSkipped++; // record not belong to this region
                       continue;
                     }
-                    WALKey key = new WALKey(Bytes.toBytes(regionInfo[0]), TableName.valueOf(KafkaUtil.getTopicTable(taskInfo[0])),
+                    WALKey key = new WALKey(Bytes.toBytes(task.getRegionName()),
+                        TableName.valueOf(KafkaUtil.getTopicTable(task.getTopic())),
                         HConstants.NO_SEQNUM, record.timestamp(), HConstants.DEFAULT_CLUSTER_ID);
                     entryBuffers.appendEntry(new Entry(key, walEdit));
                     editsCount++;
