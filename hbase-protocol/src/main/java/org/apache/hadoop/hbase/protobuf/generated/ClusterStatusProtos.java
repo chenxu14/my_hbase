@@ -3252,6 +3252,556 @@ public final class ClusterStatusProtos {
     // @@protoc_insertion_point(class_scope:RegionStoreSequenceIds)
   }
 
+  public interface KafkaOffsetOrBuilder
+      extends com.google.protobuf.MessageOrBuilder {
+
+    // required uint32 partition = 1;
+    /**
+     * <code>required uint32 partition = 1;</code>
+     */
+    boolean hasPartition();
+    /**
+     * <code>required uint32 partition = 1;</code>
+     */
+    int getPartition();
+
+    // required uint64 offset = 2;
+    /**
+     * <code>required uint64 offset = 2;</code>
+     */
+    boolean hasOffset();
+    /**
+     * <code>required uint64 offset = 2;</code>
+     */
+    long getOffset();
+  }
+  /**
+   * Protobuf type {@code KafkaOffset}
+   *
+   * <pre>
+   **
+   * offset info of each partition
+   * </pre>
+   */
+  public static final class KafkaOffset extends
+      com.google.protobuf.GeneratedMessage
+      implements KafkaOffsetOrBuilder {
+    // Use KafkaOffset.newBuilder() to construct.
+    private KafkaOffset(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+      this.unknownFields = builder.getUnknownFields();
+    }
+    private KafkaOffset(boolean noInit) { this.unknownFields = com.google.protobuf.UnknownFieldSet.getDefaultInstance(); }
+
+    private static final KafkaOffset defaultInstance;
+    public static KafkaOffset getDefaultInstance() {
+      return defaultInstance;
+    }
+
+    public KafkaOffset getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+
+    private final com.google.protobuf.UnknownFieldSet unknownFields;
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet
+        getUnknownFields() {
+      return this.unknownFields;
+    }
+    private KafkaOffset(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      initFields();
+      int mutable_bitField0_ = 0;
+      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder();
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            default: {
+              if (!parseUnknownField(input, unknownFields,
+                                     extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              partition_ = input.readUInt32();
+              break;
+            }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              offset_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(
+            e.getMessage()).setUnfinishedMessage(this);
+      } finally {
+        this.unknownFields = unknownFields.build();
+        makeExtensionsImmutable();
+      }
+    }
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.internal_static_KafkaOffset_descriptor;
+    }
+
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.internal_static_KafkaOffset_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.class, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder.class);
+    }
+
+    public static com.google.protobuf.Parser<KafkaOffset> PARSER =
+        new com.google.protobuf.AbstractParser<KafkaOffset>() {
+      public KafkaOffset parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return new KafkaOffset(input, extensionRegistry);
+      }
+    };
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<KafkaOffset> getParserForType() {
+      return PARSER;
+    }
+
+    private int bitField0_;
+    // required uint32 partition = 1;
+    public static final int PARTITION_FIELD_NUMBER = 1;
+    private int partition_;
+    /**
+     * <code>required uint32 partition = 1;</code>
+     */
+    public boolean hasPartition() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    /**
+     * <code>required uint32 partition = 1;</code>
+     */
+    public int getPartition() {
+      return partition_;
+    }
+
+    // required uint64 offset = 2;
+    public static final int OFFSET_FIELD_NUMBER = 2;
+    private long offset_;
+    /**
+     * <code>required uint64 offset = 2;</code>
+     */
+    public boolean hasOffset() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    /**
+     * <code>required uint64 offset = 2;</code>
+     */
+    public long getOffset() {
+      return offset_;
+    }
+
+    private void initFields() {
+      partition_ = 0;
+      offset_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+
+      if (!hasPartition()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasOffset()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt32(1, partition_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeUInt64(2, offset_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt32Size(1, partition_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(2, offset_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSerializedSize = size;
+      return size;
+    }
+
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset)) {
+        return super.equals(obj);
+      }
+      org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset other = (org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset) obj;
+
+      boolean result = true;
+      result = result && (hasPartition() == other.hasPartition());
+      if (hasPartition()) {
+        result = result && (getPartition()
+            == other.getPartition());
+      }
+      result = result && (hasOffset() == other.hasOffset());
+      if (hasOffset()) {
+        result = result && (getOffset()
+            == other.getOffset());
+      }
+      result = result &&
+          getUnknownFields().equals(other.getUnknownFields());
+      return result;
+    }
+
+    private int memoizedHashCode = 0;
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptorForType().hashCode();
+      if (hasPartition()) {
+        hash = (37 * hash) + PARTITION_FIELD_NUMBER;
+        hash = (53 * hash) + getPartition();
+      }
+      if (hasOffset()) {
+        hash = (37 * hash) + OFFSET_FIELD_NUMBER;
+        hash = (53 * hash) + hashLong(getOffset());
+      }
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input, extensionRegistry);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return PARSER.parseDelimitedFrom(input);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseDelimitedFrom(input, extensionRegistry);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input);
+    }
+    public static org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input, extensionRegistry);
+    }
+
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code KafkaOffset}
+     *
+     * <pre>
+     **
+     * offset info of each partition
+     * </pre>
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder>
+       implements org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.internal_static_KafkaOffset_descriptor;
+      }
+
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.internal_static_KafkaOffset_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.class, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder.class);
+      }
+
+      // Construct using org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
+        }
+      }
+      private static Builder create() {
+        return new Builder();
+      }
+
+      public Builder clear() {
+        super.clear();
+        partition_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        offset_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.internal_static_KafkaOffset_descriptor;
+      }
+
+      public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset getDefaultInstanceForType() {
+        return org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.getDefaultInstance();
+      }
+
+      public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset build() {
+        org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset buildPartial() {
+        org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset result = new org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset(this);
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.partition_ = partition_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.offset_ = offset_;
+        result.bitField0_ = to_bitField0_;
+        onBuilt();
+        return result;
+      }
+
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset) {
+          return mergeFrom((org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset other) {
+        if (other == org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.getDefaultInstance()) return this;
+        if (other.hasPartition()) {
+          setPartition(other.getPartition());
+        }
+        if (other.hasOffset()) {
+          setOffset(other.getOffset());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        return this;
+      }
+
+      public final boolean isInitialized() {
+        if (!hasPartition()) {
+          
+          return false;
+        }
+        if (!hasOffset()) {
+          
+          return false;
+        }
+        return true;
+      }
+
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset) e.getUnfinishedMessage();
+          throw e;
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+      private int bitField0_;
+
+      // required uint32 partition = 1;
+      private int partition_ ;
+      /**
+       * <code>required uint32 partition = 1;</code>
+       */
+      public boolean hasPartition() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      /**
+       * <code>required uint32 partition = 1;</code>
+       */
+      public int getPartition() {
+        return partition_;
+      }
+      /**
+       * <code>required uint32 partition = 1;</code>
+       */
+      public Builder setPartition(int value) {
+        bitField0_ |= 0x00000001;
+        partition_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required uint32 partition = 1;</code>
+       */
+      public Builder clearPartition() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        partition_ = 0;
+        onChanged();
+        return this;
+      }
+
+      // required uint64 offset = 2;
+      private long offset_ ;
+      /**
+       * <code>required uint64 offset = 2;</code>
+       */
+      public boolean hasOffset() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      /**
+       * <code>required uint64 offset = 2;</code>
+       */
+      public long getOffset() {
+        return offset_;
+      }
+      /**
+       * <code>required uint64 offset = 2;</code>
+       */
+      public Builder setOffset(long value) {
+        bitField0_ |= 0x00000002;
+        offset_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required uint64 offset = 2;</code>
+       */
+      public Builder clearOffset() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        offset_ = 0L;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:KafkaOffset)
+    }
+
+    static {
+      defaultInstance = new KafkaOffset(true);
+      defaultInstance.initFields();
+    }
+
+    // @@protoc_insertion_point(class_scope:KafkaOffset)
+  }
+
   public interface RegionLoadOrBuilder
       extends com.google.protobuf.MessageOrBuilder {
 
@@ -3631,6 +4181,51 @@ public final class ClusterStatusProtos {
      * </pre>
      */
     long getCpRequestsCount();
+
+    // repeated .KafkaOffset kafka_offset = 20;
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    java.util.List<org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset> 
+        getKafkaOffsetList();
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset getKafkaOffset(int index);
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    int getKafkaOffsetCount();
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    java.util.List<? extends org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder> 
+        getKafkaOffsetOrBuilderList();
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder getKafkaOffsetOrBuilder(
+        int index);
   }
   /**
    * Protobuf type {@code RegionLoad}
@@ -3789,6 +4384,14 @@ public final class ClusterStatusProtos {
               cpRequestsCount_ = input.readUInt64();
               break;
             }
+            case 162: {
+              if (!((mutable_bitField0_ & 0x00080000) == 0x00080000)) {
+                kafkaOffset_ = new java.util.ArrayList<org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset>();
+                mutable_bitField0_ |= 0x00080000;
+              }
+              kafkaOffset_.add(input.readMessage(org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.PARSER, extensionRegistry));
+              break;
+            }
           }
         }
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
@@ -3799,6 +4402,9 @@ public final class ClusterStatusProtos {
       } finally {
         if (((mutable_bitField0_ & 0x00020000) == 0x00020000)) {
           storeCompleteSequenceId_ = java.util.Collections.unmodifiableList(storeCompleteSequenceId_);
+        }
+        if (((mutable_bitField0_ & 0x00080000) == 0x00080000)) {
+          kafkaOffset_ = java.util.Collections.unmodifiableList(kafkaOffset_);
         }
         this.unknownFields = unknownFields.build();
         makeExtensionsImmutable();
@@ -4330,6 +4936,62 @@ public final class ClusterStatusProtos {
       return cpRequestsCount_;
     }
 
+    // repeated .KafkaOffset kafka_offset = 20;
+    public static final int KAFKA_OFFSET_FIELD_NUMBER = 20;
+    private java.util.List<org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset> kafkaOffset_;
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    public java.util.List<org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset> getKafkaOffsetList() {
+      return kafkaOffset_;
+    }
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    public java.util.List<? extends org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder> 
+        getKafkaOffsetOrBuilderList() {
+      return kafkaOffset_;
+    }
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    public int getKafkaOffsetCount() {
+      return kafkaOffset_.size();
+    }
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset getKafkaOffset(int index) {
+      return kafkaOffset_.get(index);
+    }
+    /**
+     * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+     *
+     * <pre>
+     ** the most recent kafka offset from cache flush 
+     * </pre>
+     */
+    public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder getKafkaOffsetOrBuilder(
+        int index) {
+      return kafkaOffset_.get(index);
+    }
+
     private void initFields() {
       regionSpecifier_ = org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.RegionSpecifier.getDefaultInstance();
       stores_ = 0;
@@ -4350,6 +5012,7 @@ public final class ClusterStatusProtos {
       lastMajorCompactionTs_ = 0L;
       storeCompleteSequenceId_ = java.util.Collections.emptyList();
       cpRequestsCount_ = 0L;
+      kafkaOffset_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4366,6 +5029,12 @@ public final class ClusterStatusProtos {
       }
       for (int i = 0; i < getStoreCompleteSequenceIdCount(); i++) {
         if (!getStoreCompleteSequenceId(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      for (int i = 0; i < getKafkaOffsetCount(); i++) {
+        if (!getKafkaOffset(i).isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -4433,6 +5102,9 @@ public final class ClusterStatusProtos {
       }
       if (((bitField0_ & 0x00020000) == 0x00020000)) {
         output.writeUInt64(19, cpRequestsCount_);
+      }
+      for (int i = 0; i < kafkaOffset_.size(); i++) {
+        output.writeMessage(20, kafkaOffset_.get(i));
       }
       getUnknownFields().writeTo(output);
     }
@@ -4518,6 +5190,10 @@ public final class ClusterStatusProtos {
       if (((bitField0_ & 0x00020000) == 0x00020000)) {
         size += com.google.protobuf.CodedOutputStream
           .computeUInt64Size(19, cpRequestsCount_);
+      }
+      for (int i = 0; i < kafkaOffset_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(20, kafkaOffset_.get(i));
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -4633,6 +5309,8 @@ public final class ClusterStatusProtos {
         result = result && (getCpRequestsCount()
             == other.getCpRequestsCount());
       }
+      result = result && getKafkaOffsetList()
+          .equals(other.getKafkaOffsetList());
       result = result &&
           getUnknownFields().equals(other.getUnknownFields());
       return result;
@@ -4722,6 +5400,10 @@ public final class ClusterStatusProtos {
       if (hasCpRequestsCount()) {
         hash = (37 * hash) + CP_REQUESTS_COUNT_FIELD_NUMBER;
         hash = (53 * hash) + hashLong(getCpRequestsCount());
+      }
+      if (getKafkaOffsetCount() > 0) {
+        hash = (37 * hash) + KAFKA_OFFSET_FIELD_NUMBER;
+        hash = (53 * hash) + getKafkaOffsetList().hashCode();
       }
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
@@ -4826,6 +5508,7 @@ public final class ClusterStatusProtos {
         if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
           getRegionSpecifierFieldBuilder();
           getStoreCompleteSequenceIdFieldBuilder();
+          getKafkaOffsetFieldBuilder();
         }
       }
       private static Builder create() {
@@ -4880,6 +5563,12 @@ public final class ClusterStatusProtos {
         }
         cpRequestsCount_ = 0L;
         bitField0_ = (bitField0_ & ~0x00040000);
+        if (kafkaOffsetBuilder_ == null) {
+          kafkaOffset_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00080000);
+        } else {
+          kafkaOffsetBuilder_.clear();
+        }
         return this;
       }
 
@@ -4993,6 +5682,15 @@ public final class ClusterStatusProtos {
           to_bitField0_ |= 0x00020000;
         }
         result.cpRequestsCount_ = cpRequestsCount_;
+        if (kafkaOffsetBuilder_ == null) {
+          if (((bitField0_ & 0x00080000) == 0x00080000)) {
+            kafkaOffset_ = java.util.Collections.unmodifiableList(kafkaOffset_);
+            bitField0_ = (bitField0_ & ~0x00080000);
+          }
+          result.kafkaOffset_ = kafkaOffset_;
+        } else {
+          result.kafkaOffset_ = kafkaOffsetBuilder_.build();
+        }
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -5089,6 +5787,32 @@ public final class ClusterStatusProtos {
         if (other.hasCpRequestsCount()) {
           setCpRequestsCount(other.getCpRequestsCount());
         }
+        if (kafkaOffsetBuilder_ == null) {
+          if (!other.kafkaOffset_.isEmpty()) {
+            if (kafkaOffset_.isEmpty()) {
+              kafkaOffset_ = other.kafkaOffset_;
+              bitField0_ = (bitField0_ & ~0x00080000);
+            } else {
+              ensureKafkaOffsetIsMutable();
+              kafkaOffset_.addAll(other.kafkaOffset_);
+            }
+            onChanged();
+          }
+        } else {
+          if (!other.kafkaOffset_.isEmpty()) {
+            if (kafkaOffsetBuilder_.isEmpty()) {
+              kafkaOffsetBuilder_.dispose();
+              kafkaOffsetBuilder_ = null;
+              kafkaOffset_ = other.kafkaOffset_;
+              bitField0_ = (bitField0_ & ~0x00080000);
+              kafkaOffsetBuilder_ = 
+                com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
+                   getKafkaOffsetFieldBuilder() : null;
+            } else {
+              kafkaOffsetBuilder_.addAllMessages(other.kafkaOffset_);
+            }
+          }
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -5104,6 +5828,12 @@ public final class ClusterStatusProtos {
         }
         for (int i = 0; i < getStoreCompleteSequenceIdCount(); i++) {
           if (!getStoreCompleteSequenceId(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        for (int i = 0; i < getKafkaOffsetCount(); i++) {
+          if (!getKafkaOffset(i).isInitialized()) {
             
             return false;
           }
@@ -6426,6 +7156,318 @@ public final class ClusterStatusProtos {
         cpRequestsCount_ = 0L;
         onChanged();
         return this;
+      }
+
+      // repeated .KafkaOffset kafka_offset = 20;
+      private java.util.List<org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset> kafkaOffset_ =
+        java.util.Collections.emptyList();
+      private void ensureKafkaOffsetIsMutable() {
+        if (!((bitField0_ & 0x00080000) == 0x00080000)) {
+          kafkaOffset_ = new java.util.ArrayList<org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset>(kafkaOffset_);
+          bitField0_ |= 0x00080000;
+         }
+      }
+
+      private com.google.protobuf.RepeatedFieldBuilder<
+          org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder> kafkaOffsetBuilder_;
+
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public java.util.List<org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset> getKafkaOffsetList() {
+        if (kafkaOffsetBuilder_ == null) {
+          return java.util.Collections.unmodifiableList(kafkaOffset_);
+        } else {
+          return kafkaOffsetBuilder_.getMessageList();
+        }
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public int getKafkaOffsetCount() {
+        if (kafkaOffsetBuilder_ == null) {
+          return kafkaOffset_.size();
+        } else {
+          return kafkaOffsetBuilder_.getCount();
+        }
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset getKafkaOffset(int index) {
+        if (kafkaOffsetBuilder_ == null) {
+          return kafkaOffset_.get(index);
+        } else {
+          return kafkaOffsetBuilder_.getMessage(index);
+        }
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder setKafkaOffset(
+          int index, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset value) {
+        if (kafkaOffsetBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureKafkaOffsetIsMutable();
+          kafkaOffset_.set(index, value);
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.setMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder setKafkaOffset(
+          int index, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder builderForValue) {
+        if (kafkaOffsetBuilder_ == null) {
+          ensureKafkaOffsetIsMutable();
+          kafkaOffset_.set(index, builderForValue.build());
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.setMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder addKafkaOffset(org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset value) {
+        if (kafkaOffsetBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureKafkaOffsetIsMutable();
+          kafkaOffset_.add(value);
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.addMessage(value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder addKafkaOffset(
+          int index, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset value) {
+        if (kafkaOffsetBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureKafkaOffsetIsMutable();
+          kafkaOffset_.add(index, value);
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.addMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder addKafkaOffset(
+          org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder builderForValue) {
+        if (kafkaOffsetBuilder_ == null) {
+          ensureKafkaOffsetIsMutable();
+          kafkaOffset_.add(builderForValue.build());
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.addMessage(builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder addKafkaOffset(
+          int index, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder builderForValue) {
+        if (kafkaOffsetBuilder_ == null) {
+          ensureKafkaOffsetIsMutable();
+          kafkaOffset_.add(index, builderForValue.build());
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.addMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder addAllKafkaOffset(
+          java.lang.Iterable<? extends org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset> values) {
+        if (kafkaOffsetBuilder_ == null) {
+          ensureKafkaOffsetIsMutable();
+          super.addAll(values, kafkaOffset_);
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.addAllMessages(values);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder clearKafkaOffset() {
+        if (kafkaOffsetBuilder_ == null) {
+          kafkaOffset_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00080000);
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public Builder removeKafkaOffset(int index) {
+        if (kafkaOffsetBuilder_ == null) {
+          ensureKafkaOffsetIsMutable();
+          kafkaOffset_.remove(index);
+          onChanged();
+        } else {
+          kafkaOffsetBuilder_.remove(index);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder getKafkaOffsetBuilder(
+          int index) {
+        return getKafkaOffsetFieldBuilder().getBuilder(index);
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder getKafkaOffsetOrBuilder(
+          int index) {
+        if (kafkaOffsetBuilder_ == null) {
+          return kafkaOffset_.get(index);  } else {
+          return kafkaOffsetBuilder_.getMessageOrBuilder(index);
+        }
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public java.util.List<? extends org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder> 
+           getKafkaOffsetOrBuilderList() {
+        if (kafkaOffsetBuilder_ != null) {
+          return kafkaOffsetBuilder_.getMessageOrBuilderList();
+        } else {
+          return java.util.Collections.unmodifiableList(kafkaOffset_);
+        }
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder addKafkaOffsetBuilder() {
+        return getKafkaOffsetFieldBuilder().addBuilder(
+            org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.getDefaultInstance());
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder addKafkaOffsetBuilder(
+          int index) {
+        return getKafkaOffsetFieldBuilder().addBuilder(
+            index, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.getDefaultInstance());
+      }
+      /**
+       * <code>repeated .KafkaOffset kafka_offset = 20;</code>
+       *
+       * <pre>
+       ** the most recent kafka offset from cache flush 
+       * </pre>
+       */
+      public java.util.List<org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder> 
+           getKafkaOffsetBuilderList() {
+        return getKafkaOffsetFieldBuilder().getBuilderList();
+      }
+      private com.google.protobuf.RepeatedFieldBuilder<
+          org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder> 
+          getKafkaOffsetFieldBuilder() {
+        if (kafkaOffsetBuilder_ == null) {
+          kafkaOffsetBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
+              org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset.Builder, org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffsetOrBuilder>(
+                  kafkaOffset_,
+                  ((bitField0_ & 0x00080000) == 0x00080000),
+                  getParentForChildren(),
+                  isClean());
+          kafkaOffset_ = null;
+        }
+        return kafkaOffsetBuilder_;
       }
 
       // @@protoc_insertion_point(builder_scope:RegionLoad)
@@ -14790,6 +15832,11 @@ public final class ClusterStatusProtos {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_RegionStoreSequenceIds_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
+    internal_static_KafkaOffset_descriptor;
+  private static
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_KafkaOffset_fieldAccessorTable;
+  private static com.google.protobuf.Descriptors.Descriptor
     internal_static_RegionLoad_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -14844,50 +15891,52 @@ public final class ClusterStatusProtos {
       "\014\022\023\n\013sequence_id\030\002 \002(\004\"g\n\026RegionStoreSeq" +
       "uenceIds\022 \n\030last_flushed_sequence_id\030\001 \002" +
       "(\004\022+\n\021store_sequence_id\030\002 \003(\0132\020.StoreSeq" +
-      "uenceId\"\335\004\n\nRegionLoad\022*\n\020region_specifi" +
-      "er\030\001 \002(\0132\020.RegionSpecifier\022\016\n\006stores\030\002 \001" +
-      "(\r\022\022\n\nstorefiles\030\003 \001(\r\022\"\n\032store_uncompre" +
-      "ssed_size_MB\030\004 \001(\r\022\031\n\021storefile_size_MB\030",
-      "\005 \001(\r\022\030\n\020memstore_size_MB\030\006 \001(\r\022\037\n\027store" +
-      "file_index_size_MB\030\007 \001(\r\022\033\n\023read_request" +
-      "s_count\030\010 \001(\004\022\034\n\024write_requests_count\030\t " +
-      "\001(\004\022\034\n\024total_compacting_KVs\030\n \001(\004\022\035\n\025cur" +
-      "rent_compacted_KVs\030\013 \001(\004\022\032\n\022root_index_s" +
-      "ize_KB\030\014 \001(\r\022\"\n\032total_static_index_size_" +
-      "KB\030\r \001(\r\022\"\n\032total_static_bloom_size_KB\030\016" +
-      " \001(\r\022\034\n\024complete_sequence_id\030\017 \001(\004\022\025\n\rda" +
-      "ta_locality\030\020 \001(\002\022#\n\030last_major_compacti" +
-      "on_ts\030\021 \001(\004:\0010\0224\n\032store_complete_sequenc",
-      "e_id\030\022 \003(\0132\020.StoreSequenceId\022\031\n\021cp_reque" +
-      "sts_count\030\023 \001(\004\"T\n\023ReplicationLoadSink\022\032" +
-      "\n\022ageOfLastAppliedOp\030\001 \002(\004\022!\n\031timeStamps" +
-      "OfLastAppliedOp\030\002 \002(\004\"\225\001\n\025ReplicationLoa" +
-      "dSource\022\016\n\006peerID\030\001 \002(\t\022\032\n\022ageOfLastShip" +
-      "pedOp\030\002 \002(\004\022\026\n\016sizeOfLogQueue\030\003 \002(\r\022 \n\030t" +
-      "imeStampOfLastShippedOp\030\004 \002(\004\022\026\n\016replica" +
-      "tionLag\030\005 \002(\004\"\346\002\n\nServerLoad\022\032\n\022number_o" +
-      "f_requests\030\001 \001(\004\022 \n\030total_number_of_requ" +
-      "ests\030\002 \001(\004\022\024\n\014used_heap_MB\030\003 \001(\r\022\023\n\013max_",
-      "heap_MB\030\004 \001(\r\022!\n\014region_loads\030\005 \003(\0132\013.Re" +
-      "gionLoad\022\"\n\014coprocessors\030\006 \003(\0132\014.Coproce" +
-      "ssor\022\031\n\021report_start_time\030\007 \001(\004\022\027\n\017repor" +
-      "t_end_time\030\010 \001(\004\022\030\n\020info_server_port\030\t \001" +
-      "(\r\022.\n\016replLoadSource\030\n \003(\0132\026.Replication" +
-      "LoadSource\022*\n\014replLoadSink\030\013 \001(\0132\024.Repli" +
-      "cationLoadSink\"O\n\016LiveServerInfo\022\033\n\006serv" +
-      "er\030\001 \002(\0132\013.ServerName\022 \n\013server_load\030\002 \002" +
-      "(\0132\013.ServerLoad\"\340\002\n\rClusterStatus\022/\n\rhba" +
-      "se_version\030\001 \001(\0132\030.HBaseVersionFileConte",
-      "nt\022%\n\014live_servers\030\002 \003(\0132\017.LiveServerInf" +
-      "o\022!\n\014dead_servers\030\003 \003(\0132\013.ServerName\0222\n\025" +
-      "regions_in_transition\030\004 \003(\0132\023.RegionInTr" +
-      "ansition\022\036\n\ncluster_id\030\005 \001(\0132\n.ClusterId" +
-      "\022)\n\023master_coprocessors\030\006 \003(\0132\014.Coproces" +
-      "sor\022\033\n\006master\030\007 \001(\0132\013.ServerName\022#\n\016back" +
-      "up_masters\030\010 \003(\0132\013.ServerName\022\023\n\013balance" +
-      "r_on\030\t \001(\010BF\n*org.apache.hadoop.hbase.pr" +
-      "otobuf.generatedB\023ClusterStatusProtosH\001\240" +
-      "\001\001"
+      "uenceId\"0\n\013KafkaOffset\022\021\n\tpartition\030\001 \002(" +
+      "\r\022\016\n\006offset\030\002 \002(\004\"\201\005\n\nRegionLoad\022*\n\020regi" +
+      "on_specifier\030\001 \002(\0132\020.RegionSpecifier\022\016\n\006" +
+      "stores\030\002 \001(\r\022\022\n\nstorefiles\030\003 \001(\r\022\"\n\032stor",
+      "e_uncompressed_size_MB\030\004 \001(\r\022\031\n\021storefil" +
+      "e_size_MB\030\005 \001(\r\022\030\n\020memstore_size_MB\030\006 \001(" +
+      "\r\022\037\n\027storefile_index_size_MB\030\007 \001(\r\022\033\n\023re" +
+      "ad_requests_count\030\010 \001(\004\022\034\n\024write_request" +
+      "s_count\030\t \001(\004\022\034\n\024total_compacting_KVs\030\n " +
+      "\001(\004\022\035\n\025current_compacted_KVs\030\013 \001(\004\022\032\n\022ro" +
+      "ot_index_size_KB\030\014 \001(\r\022\"\n\032total_static_i" +
+      "ndex_size_KB\030\r \001(\r\022\"\n\032total_static_bloom" +
+      "_size_KB\030\016 \001(\r\022\034\n\024complete_sequence_id\030\017" +
+      " \001(\004\022\025\n\rdata_locality\030\020 \001(\002\022#\n\030last_majo",
+      "r_compaction_ts\030\021 \001(\004:\0010\0224\n\032store_comple" +
+      "te_sequence_id\030\022 \003(\0132\020.StoreSequenceId\022\031" +
+      "\n\021cp_requests_count\030\023 \001(\004\022\"\n\014kafka_offse" +
+      "t\030\024 \003(\0132\014.KafkaOffset\"T\n\023ReplicationLoad" +
+      "Sink\022\032\n\022ageOfLastAppliedOp\030\001 \002(\004\022!\n\031time" +
+      "StampsOfLastAppliedOp\030\002 \002(\004\"\225\001\n\025Replicat" +
+      "ionLoadSource\022\016\n\006peerID\030\001 \002(\t\022\032\n\022ageOfLa" +
+      "stShippedOp\030\002 \002(\004\022\026\n\016sizeOfLogQueue\030\003 \002(" +
+      "\r\022 \n\030timeStampOfLastShippedOp\030\004 \002(\004\022\026\n\016r" +
+      "eplicationLag\030\005 \002(\004\"\346\002\n\nServerLoad\022\032\n\022nu",
+      "mber_of_requests\030\001 \001(\004\022 \n\030total_number_o" +
+      "f_requests\030\002 \001(\004\022\024\n\014used_heap_MB\030\003 \001(\r\022\023" +
+      "\n\013max_heap_MB\030\004 \001(\r\022!\n\014region_loads\030\005 \003(" +
+      "\0132\013.RegionLoad\022\"\n\014coprocessors\030\006 \003(\0132\014.C" +
+      "oprocessor\022\031\n\021report_start_time\030\007 \001(\004\022\027\n" +
+      "\017report_end_time\030\010 \001(\004\022\030\n\020info_server_po" +
+      "rt\030\t \001(\r\022.\n\016replLoadSource\030\n \003(\0132\026.Repli" +
+      "cationLoadSource\022*\n\014replLoadSink\030\013 \001(\0132\024" +
+      ".ReplicationLoadSink\"O\n\016LiveServerInfo\022\033" +
+      "\n\006server\030\001 \002(\0132\013.ServerName\022 \n\013server_lo",
+      "ad\030\002 \002(\0132\013.ServerLoad\"\340\002\n\rClusterStatus\022" +
+      "/\n\rhbase_version\030\001 \001(\0132\030.HBaseVersionFil" +
+      "eContent\022%\n\014live_servers\030\002 \003(\0132\017.LiveSer" +
+      "verInfo\022!\n\014dead_servers\030\003 \003(\0132\013.ServerNa" +
+      "me\0222\n\025regions_in_transition\030\004 \003(\0132\023.Regi" +
+      "onInTransition\022\036\n\ncluster_id\030\005 \001(\0132\n.Clu" +
+      "sterId\022)\n\023master_coprocessors\030\006 \003(\0132\014.Co" +
+      "processor\022\033\n\006master\030\007 \001(\0132\013.ServerName\022#" +
+      "\n\016backup_masters\030\010 \003(\0132\013.ServerName\022\023\n\013b" +
+      "alancer_on\030\t \001(\010BF\n*org.apache.hadoop.hb",
+      "ase.protobuf.generatedB\023ClusterStatusPro" +
+      "tosH\001\240\001\001"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -14918,38 +15967,44 @@ public final class ClusterStatusProtos {
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_RegionStoreSequenceIds_descriptor,
               new java.lang.String[] { "LastFlushedSequenceId", "StoreSequenceId", });
-          internal_static_RegionLoad_descriptor =
+          internal_static_KafkaOffset_descriptor =
             getDescriptor().getMessageTypes().get(4);
+          internal_static_KafkaOffset_fieldAccessorTable = new
+            com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+              internal_static_KafkaOffset_descriptor,
+              new java.lang.String[] { "Partition", "Offset", });
+          internal_static_RegionLoad_descriptor =
+            getDescriptor().getMessageTypes().get(5);
           internal_static_RegionLoad_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_RegionLoad_descriptor,
-              new java.lang.String[] { "RegionSpecifier", "Stores", "Storefiles", "StoreUncompressedSizeMB", "StorefileSizeMB", "MemstoreSizeMB", "StorefileIndexSizeMB", "ReadRequestsCount", "WriteRequestsCount", "TotalCompactingKVs", "CurrentCompactedKVs", "RootIndexSizeKB", "TotalStaticIndexSizeKB", "TotalStaticBloomSizeKB", "CompleteSequenceId", "DataLocality", "LastMajorCompactionTs", "StoreCompleteSequenceId", "CpRequestsCount", });
+              new java.lang.String[] { "RegionSpecifier", "Stores", "Storefiles", "StoreUncompressedSizeMB", "StorefileSizeMB", "MemstoreSizeMB", "StorefileIndexSizeMB", "ReadRequestsCount", "WriteRequestsCount", "TotalCompactingKVs", "CurrentCompactedKVs", "RootIndexSizeKB", "TotalStaticIndexSizeKB", "TotalStaticBloomSizeKB", "CompleteSequenceId", "DataLocality", "LastMajorCompactionTs", "StoreCompleteSequenceId", "CpRequestsCount", "KafkaOffset", });
           internal_static_ReplicationLoadSink_descriptor =
-            getDescriptor().getMessageTypes().get(5);
+            getDescriptor().getMessageTypes().get(6);
           internal_static_ReplicationLoadSink_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_ReplicationLoadSink_descriptor,
               new java.lang.String[] { "AgeOfLastAppliedOp", "TimeStampsOfLastAppliedOp", });
           internal_static_ReplicationLoadSource_descriptor =
-            getDescriptor().getMessageTypes().get(6);
+            getDescriptor().getMessageTypes().get(7);
           internal_static_ReplicationLoadSource_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_ReplicationLoadSource_descriptor,
               new java.lang.String[] { "PeerID", "AgeOfLastShippedOp", "SizeOfLogQueue", "TimeStampOfLastShippedOp", "ReplicationLag", });
           internal_static_ServerLoad_descriptor =
-            getDescriptor().getMessageTypes().get(7);
+            getDescriptor().getMessageTypes().get(8);
           internal_static_ServerLoad_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_ServerLoad_descriptor,
               new java.lang.String[] { "NumberOfRequests", "TotalNumberOfRequests", "UsedHeapMB", "MaxHeapMB", "RegionLoads", "Coprocessors", "ReportStartTime", "ReportEndTime", "InfoServerPort", "ReplLoadSource", "ReplLoadSink", });
           internal_static_LiveServerInfo_descriptor =
-            getDescriptor().getMessageTypes().get(8);
+            getDescriptor().getMessageTypes().get(9);
           internal_static_LiveServerInfo_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_LiveServerInfo_descriptor,
               new java.lang.String[] { "Server", "ServerLoad", });
           internal_static_ClusterStatus_descriptor =
-            getDescriptor().getMessageTypes().get(9);
+            getDescriptor().getMessageTypes().get(10);
           internal_static_ClusterStatus_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_ClusterStatus_descriptor,

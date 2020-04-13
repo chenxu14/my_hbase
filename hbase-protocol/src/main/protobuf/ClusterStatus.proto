@@ -76,6 +76,14 @@ message RegionStoreSequenceIds {
   repeated StoreSequenceId store_sequence_id = 2;
 }
 
+/**
+ * offset info of each partition
+ */
+message KafkaOffset {
+  required uint32 partition = 1;
+  required uint64 offset = 2;
+}
+
 message RegionLoad {
   /** the region specifier */
   required RegionSpecifier region_specifier = 1;
@@ -138,6 +146,9 @@ message RegionLoad {
 
   /** the current total read requests made to region */
   optional uint64 cp_requests_count = 19;
+
+  /** the most recent kafka offset from cache flush */
+  repeated KafkaOffset kafka_offset = 20;
 }
 
 /* Server-level protobufs */

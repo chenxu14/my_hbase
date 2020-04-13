@@ -108,7 +108,7 @@ public class RSGroupAdminEndpoint extends BaseMasterObserver implements Coproces
     groupInfoManager.removeTable(tableName);
   }
 
-/**
+  /**
    * Implementation of RSGroupAdminService defined in RSGroupAdmin.proto.
    * This class calls {@link RSGroupAdminServer} for actual work, converts result to protocol
    * buffer response, handles exceptions if any occurred and then calls the {@code RpcCallback} with

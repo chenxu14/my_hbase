@@ -19,6 +19,7 @@
 package org.apache.hadoop.hbase.master;
 
 import static org.apache.hadoop.hbase.util.CollectionUtils.computeIfAbsent;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -71,6 +72,7 @@ import org.apache.hadoop.hbase.protobuf.generated.AdminProtos.AdminService;
 import org.apache.hadoop.hbase.protobuf.generated.AdminProtos.OpenRegionRequest;
 import org.apache.hadoop.hbase.protobuf.generated.AdminProtos.OpenRegionResponse;
 import org.apache.hadoop.hbase.protobuf.generated.AdminProtos.ServerInfo;
+import org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.KafkaOffset;
 import org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.RegionStoreSequenceIds;
 import org.apache.hadoop.hbase.protobuf.generated.ClusterStatusProtos.StoreSequenceId;
 import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.FlushedRegionSequenceId;
@@ -155,6 +157,9 @@ public class ServerManager {
    */
   private final ConcurrentNavigableMap<byte[], Long> flushedSequenceIdByRegion =
     new ConcurrentSkipListMap<byte[], Long>(Bytes.BYTES_COMPARATOR);
+
+  private final ConcurrentNavigableMap<byte[], Map<Integer, Long>> flushedKafkaOffsets =
+      new ConcurrentSkipListMap<>(Bytes.BYTES_COMPARATOR);
 
   private boolean persistFlushedSequenceId = true;
   private volatile boolean isFlushSeqIdPersistInProgress = false;
@@ -327,6 +332,7 @@ public class ServerManager {
         storeFlushedSequenceIdsByRegion.putIfAbsent(regionName, storeFlushedSequenceId);
     return alreadyPut == null ? storeFlushedSequenceId : alreadyPut;
   }
+
   /**
    * Updates last flushed sequence Ids for the regions on server sn
    * @param sn
@@ -346,24 +352,40 @@ public class ServerManager {
       if (existingValue == null || (l != HConstants.NO_SEQNUM && l > existingValue)) {
         flushedSequenceIdByRegion.put(encodedRegionName, l);
       } else if (l != HConstants.NO_SEQNUM && l < existingValue) {
-        LOG.debug("RegionServer " + sn + " indicates a last flushed sequence id ("
+        LOG.warn("RegionServer " + sn + " indicates a last flushed sequence id ("
             + l + ") that is less than the previous last flushed sequence id ("
             + existingValue + ") for region " + Bytes.toString(entry.getKey()) + " Ignoring.");
       }
-      ConcurrentNavigableMap<byte[], Long> storeFlushedSequenceId =
-          getOrCreateStoreFlushedSequenceId(encodedRegionName);
-      for (StoreSequenceId storeSeqId : entry.getValue().getStoreCompleteSequenceId()) {
-        byte[] family = storeSeqId.getFamilyName().toByteArray();
-        existingValue = storeFlushedSequenceId.get(family);
-        l = storeSeqId.getSequenceId();
-        if (LOG.isTraceEnabled()) {
-          LOG.trace(Bytes.toString(encodedRegionName) + ", family=" + Bytes.toString(family) +
-            ", existingValue=" + existingValue + ", completeSequenceId=" + l);
+      List<StoreSequenceId> storeSeqIds = entry.getValue().getStoreCompleteSequenceId();
+      if (storeSeqIds != null && !storeSeqIds.isEmpty()) {
+        ConcurrentNavigableMap<byte[], Long> storeFlushedSequenceId =
+            getOrCreateStoreFlushedSequenceId(encodedRegionName);
+        for (StoreSequenceId storeSeqId : storeSeqIds) {
+          byte[] family = storeSeqId.getFamilyName().toByteArray();
+          existingValue = storeFlushedSequenceId.get(family);
+          l = storeSeqId.getSequenceId();
+          if (LOG.isTraceEnabled()) {
+            LOG.trace(Bytes.toString(encodedRegionName) + ", family=" + Bytes.toString(family) +
+              ", existingValue=" + existingValue + ", completeSequenceId=" + l);
+          }
+          // Don't let smaller sequence ids override greater sequence ids.
+          if (existingValue == null || (l != HConstants.NO_SEQNUM && l > existingValue.longValue())) {
+            storeFlushedSequenceId.put(family, l);
+          }
         }
-        // Don't let smaller sequence ids override greater sequence ids.
-        if (existingValue == null || (l != HConstants.NO_SEQNUM && l > existingValue.longValue())) {
-          storeFlushedSequenceId.put(family, l);
+      }
+
+      // kafka case
+      List<KafkaOffset> kafkaOffsets = entry.getValue().getKafkaOffsets();
+      if (kafkaOffsets != null && !kafkaOffsets.isEmpty()) {
+        Map<Integer, Long> newOffsets = new HashMap<>(kafkaOffsets.size());
+        for (KafkaOffset kafkaOffset : kafkaOffsets) {
+          newOffsets.put(kafkaOffset.getPartition(), kafkaOffset.getOffset());
         }
+        flushedKafkaOffsets.put(encodedRegionName, newOffsets);
+      } else {
+        // no partition info reported, the region maybe flushed
+        flushedKafkaOffsets.remove(encodedRegionName);
       }
     }
   }
@@ -522,6 +544,10 @@ public class ServerManager {
       }
     }
     return builder.build();
+  }
+
+  public Map<Integer, Long> getLastFlushedKafkaOffsets(byte[] encodedRegionName) {
+    return this.flushedKafkaOffsets.get(encodedRegionName);
   }
 
   /**

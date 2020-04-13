@@ -124,6 +124,10 @@ public class ZooKeeperWatcher implements Watcher, Abortable, Closeable {
   public String tableLockZNode;
   // znode containing the state of recovering regions
   public String recoveringRegionsZNode;
+  // voiliate region partition mapping info
+  public String partitionZnode;
+  // region partition mapping info
+  public String offsetZnode;
   // znode containing namespace descriptors
   public static String namespaceZNode = "namespace";
 
@@ -204,6 +208,8 @@ public class ZooKeeperWatcher implements Watcher, Abortable, Closeable {
       ZKUtil.createAndFailSilent(this, backupMasterAddressesZNode);
       ZKUtil.createAndFailSilent(this, tableLockZNode);
       ZKUtil.createAndFailSilent(this, recoveringRegionsZNode);
+      ZKUtil.createAndFailSilent(this, partitionZnode);
+      ZKUtil.createAndFailSilent(this, offsetZnode);
     } catch (KeeperException e) {
       throw new ZooKeeperConnectionException(
           prefix("Unexpected KeeperException creating base node"), e);
@@ -454,6 +460,8 @@ public class ZooKeeperWatcher implements Watcher, Abortable, Closeable {
         conf.get("zookeeper.znode.recovering.regions", "recovering-regions"));
     namespaceZNode = ZKUtil.joinZNode(baseZNode,
         conf.get("zookeeper.znode.namespace", "namespace"));
+    partitionZnode = ZKUtil.joinZNode(baseZNode, "region-partition-volatile");
+    offsetZnode = ZKUtil.joinZNode(baseZNode, "region-partition-persistent");
   }
 
   /**

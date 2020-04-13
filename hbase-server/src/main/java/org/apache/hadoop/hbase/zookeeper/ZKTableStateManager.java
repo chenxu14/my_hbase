@@ -187,6 +187,16 @@ public class ZKTableStateManager implements TableStateManager {
       ZKUtil.setData(this.watcher, znode, data);
       this.cache.put(tableName, state);
     }
+
+    String partitionZnode = ZKUtil.joinZNode(this.watcher.partitionZnode, tableName.getNameAsString());
+    if (ZKUtil.checkExists(this.watcher, partitionZnode) == -1) {
+      ZKUtil.createAndFailSilent(this.watcher, partitionZnode);
+    }
+
+    String offsetZnode = ZKUtil.joinZNode(this.watcher.offsetZnode, tableName.getNameAsString());
+    if (ZKUtil.checkExists(this.watcher, offsetZnode) == -1) {
+      ZKUtil.createAndFailSilent(this.watcher, offsetZnode);
+    }
   }
 
   /**
@@ -243,6 +253,10 @@ public class ZKTableStateManager implements TableStateManager {
       try {
         ZKUtil.deleteNodeFailSilent(this.watcher,
           ZKUtil.joinZNode(this.watcher.tableZNode, tableName.getNameAsString()));
+        ZKUtil.deleteNodeRecursively(this.watcher,
+          ZKUtil.joinZNode(this.watcher.partitionZnode, tableName.getNameAsString()));
+        ZKUtil.deleteNodeRecursively(this.watcher,
+          ZKUtil.joinZNode(this.watcher.offsetZnode, tableName.getNameAsString()));
       } catch (KeeperException e) {
         throw new CoordinatedStateException(e);
       }
