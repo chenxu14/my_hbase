@@ -30,6 +30,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
+import org.apache.hadoop.hbase.KafkaSplitTask;
 import org.apache.hadoop.hbase.Server;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.SplitLogCounters;
@@ -141,9 +142,9 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
             }
             // kafka partition info
             if (!first) {
-              partitions.append(SplitLogTask.FIELD_INNER_SPLITER);
-              startOffsets.append(SplitLogTask.FIELD_INNER_SPLITER);
-              endOffsets.append(SplitLogTask.FIELD_INNER_SPLITER);
+              partitions.append(KafkaSplitTask.FIELD_INNER_SPLITER);
+            	startOffsets.append(KafkaSplitTask.FIELD_INNER_SPLITER);
+            	endOffsets.append(KafkaSplitTask.FIELD_INNER_SPLITER);
             }
             partitions.append(offsetInfo.getKey());
             startOffsets.append(offsetInfo.getValue());
@@ -152,16 +153,13 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
             first = false;
           }
           if (partitions.length() > 0) {
-            // taskName like : topic__partition*__startOffset*__endOffset*__regionName--startKey--endKey
+            // KAFKASPLITTASK[len]topic[len]partitions[len]startOffsets[len]endOffset[len]regionName[len]startKeyEndkey
             String startKey = Bytes.toString(region.getStartKey());
             String endKey = Bytes.toString(region.getEndKey());
-            StringBuilder taskName = new StringBuilder(kafkaTopic).append(SplitLogTask.TASK_FIELD_SPLITER)
-                .append(partitions).append(SplitLogTask.TASK_FIELD_SPLITER) // partitions
-                .append(startOffsets).append(SplitLogTask.TASK_FIELD_SPLITER) // startOffsets
-                .append(endOffsets).append(SplitLogTask.TASK_FIELD_SPLITER) // endOffsets
-                .append(region.getEncodedName()).append(SplitLogTask.FIELD_INNER_SPLITER) // regionName
-                .append("".equals(startKey) ? "null" : startKey).append(SplitLogTask.FIELD_INNER_SPLITER) // startKey
-                .append("".equals(endKey) ? "null" : endKey); // endKey
+            startKey = "".equals(startKey) ? "null" : startKey;
+            endKey = "".equals(endKey) ? "null" : endKey;
+            String taskName = new KafkaSplitTask(kafkaTopic, partitions.toString(), startOffsets.toString(),
+                endOffsets.toString(), region.getEncodedName(), startKey, endKey).getTaskName();
             if (enqueueSplitTask(taskName.toString(), batch)) {
               LOG.info("enqueued split task : " + taskName);
             }
@@ -204,14 +202,11 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
   private void deleteVoliatePartition(String taskName) {
     if (masterService.getZooKeeper() != null) {
       try {
-        String[] taskInfo = taskName.split(SplitLogTask.TASK_FIELD_SPLITER);
-        assert(taskInfo.length == SplitLogTask.KAFKA_TASK_FIELD_LEN);
-        String[] regionInfo = taskInfo[4].split(SplitLogTask.FIELD_INNER_SPLITER); // regionName-startKey-endKey
-        assert(regionInfo.length == 3);
+        KafkaSplitTask task = KafkaSplitTask.parseFrom(taskName);
         RegionStates regionStates = masterService.getAssignmentManager().getRegionStates();
-        String table = regionStates.getRegionState(regionInfo[0]).getRegion().getTable().getNameAsString();
+        String table = regionStates.getRegionState(task.getRegionName()).getRegion().getTable().getNameAsString();
         String tableZnode = ZKUtil.joinZNode(masterService.getZooKeeper().partitionZnode, table);
-        String regionZnode = ZKUtil.joinZNode(tableZnode, regionInfo[0]);
+        String regionZnode = ZKUtil.joinZNode(tableZnode, task.getRegionName());
         ZKUtil.deleteNodeRecursively(masterService.getZooKeeper(), regionZnode);
       } catch (Throwable e) {
         LOG.error("delete voilate partition mapping failed", e);

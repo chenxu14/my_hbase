@@ -35,9 +35,6 @@ import org.apache.hadoop.hbase.util.Bytes;
  */
 @InterfaceAudience.Private
 public class SplitLogTask {
-  public static final int KAFKA_TASK_FIELD_LEN = 5;
-  public static final String TASK_FIELD_SPLITER = "__";
-  public static final String FIELD_INNER_SPLITER = "--";
   private final ServerName originServer;
   private final ZooKeeperProtos.SplitLogTask.State state;
   private final ZooKeeperProtos.SplitLogTask.RecoveryMode mode;
@@ -176,7 +173,7 @@ public class SplitLogTask {
   }
 
   public static Type getTaskType(String taskName) {
-    if (taskName.split(TASK_FIELD_SPLITER).length == KAFKA_TASK_FIELD_LEN) {
+    if (taskName != null && taskName.contains(KafkaSplitTask.KAFKA_TASK_PREFIX)) {
       return Type.KAFKA;
     } else {
       return Type.HDFS;
