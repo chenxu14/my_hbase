@@ -46,6 +46,7 @@ public class KafkaUtil {
 
   /**
    * Each HBase table corresponding to an KAFKA topic
+   * TODO should change this if hbase table and kafka topic are not equal
    */
   public static String getTableTopic(String tableName) {
     return tableName;

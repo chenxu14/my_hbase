@@ -35,6 +35,7 @@ import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.SplitLogCounters;
 import org.apache.hadoop.hbase.SplitLogTask;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.client.ConnectionUtils;
 import org.apache.hadoop.hbase.coordination.ZKSplitLogManagerCoordination.TaskFinisher;
 import org.apache.hadoop.hbase.monitoring.MonitoredTask;
 import org.apache.hadoop.hbase.monitoring.TaskMonitor;
@@ -59,10 +60,16 @@ import com.google.common.annotations.VisibleForTesting;
 public class KafkaRecoveryManager extends LogRecoveryManager {
   private static final Log LOG = LogFactory.getLog(KafkaRecoveryManager.class);
   public static final String RECOVERY_MODE = "KAFKA";
+  public static final String KAFKA_LOGSPLIT_TIME_DIFF = "hbase.logsplit.kafka.timebefore";
+  public static final long KAFKA_LOGSPLIT_TIME_DIFF_DEFAULT = 600 * 1000;
+  public static final String KAFKA_LOGSPLIT_MAX_RETRY = "hbase.logsplit.kafka.retries";
+  public static final int KAFKA_LOGSPLIT_MAX_RETRY_DEFAULT = 35;
   private final String kafkaServers;
   private KafkaConsumer<byte[],byte[]> TEST_CONSUMER;
   private AdminClient TEST_ADMIN;
   private final MasterServices masterService;
+  private final long timeDiff;
+  private final int maxRetry;
 
   public KafkaRecoveryManager(HMaster master) throws IOException {
     this(master, master, false);
@@ -73,6 +80,8 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
     super(server, server.getConfiguration(), server, masterService, server.getServerName(), initCoordination);
     this.kafkaServers = server.getConfiguration().get(KafkaUtil.KAFKA_BROKER_SERVERS);
     this.masterService = masterService;
+    timeDiff = server.getConfiguration().getLong(KAFKA_LOGSPLIT_TIME_DIFF, KAFKA_LOGSPLIT_TIME_DIFF_DEFAULT);
+    maxRetry = server.getConfiguration().getInt(KAFKA_LOGSPLIT_MAX_RETRY, KAFKA_LOGSPLIT_MAX_RETRY_DEFAULT);
   }
 
   public void splitLogs(ServerName serverName, Set<HRegionInfo> regions, ServerManager sm)
@@ -86,53 +95,69 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
         regionSize + " regions on Server " + serverName);
     SplitLogCounters.tot_mgr_log_split_batch_start.incrementAndGet();
     LOG.info("Started recovering " + regionSize + " regions in " + serverName);
-    long t = EnvironmentEdgeManager.currentTime();
-    TaskBatch batch = new TaskBatch();
+    long time = EnvironmentEdgeManager.currentTime();
 
-    try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer();
-        AdminClient admin = getKafkaAdminClient()) {
-      Map<TopicPartition, Long> lastOffsets = new HashMap<>();
-      int totalRecords = 0;
-      for (HRegionInfo region : regions) {
-        String table = region.getTable().getNameAsString();
-        String kafkaTopic = KafkaUtil.getTableTopic(table);
-        String consumerGroup = KafkaUtil.getConsumerGroup(table);
-        // iterator all region partition mappings
-        for (Map.Entry<Integer, Long> offsetInfo : getRegionPartitionMappings(consumer, sm, region).entrySet()) {
-          TopicPartition topicPartition = new TopicPartition(kafkaTopic, offsetInfo.getKey());
-          if (lastOffsets.get(topicPartition) == null) {
-            long lastOffset = HConstants.NO_SEQNUM;
-            try {
-              lastOffset = getConsumerLastOffset(admin, topicPartition, consumerGroup);
-            } catch (Throwable e) {
-              LOG.warn("error occured when get consumer's last offset." , e);
-              // fall back to partition's last offset
-              consumer.assign(Arrays.asList(topicPartition));
-              consumer.seekToEnd(Collections.singletonList(topicPartition));
-              lastOffset = consumer.position(topicPartition) -1;
+    TaskBatch batch = new TaskBatch();
+    int retry = 0;
+    boolean genSplitTaskSuccess = false;
+    Map<TopicPartition, Long> lastOffsets = new HashMap<>();
+    while (retry < maxRetry) {
+      try (KafkaConsumer<byte[], byte[]> consumer = getKafkaConsumer();
+          AdminClient admin = getKafkaAdminClient()) {
+        int totalRecords = 0;
+        for (HRegionInfo region : regions) { // TODO adjust task generation granularity
+          String table = region.getTable().getNameAsString();
+          String kafkaTopic = KafkaUtil.getTableTopic(table);
+          String consumerGroup = KafkaUtil.getConsumerGroup(table);
+          // iterator all region partition mappings
+          for (Map.Entry<Integer, Long> offsetInfo : getRegionPartitionMappings(consumer, sm, region).entrySet()) {
+            TopicPartition topicPartition = new TopicPartition(kafkaTopic, offsetInfo.getKey());
+            if (lastOffsets.get(topicPartition) == null) {
+              long lastOffset = HConstants.NO_SEQNUM;
+              try {
+                lastOffset = getConsumerLastOffset(admin, topicPartition, consumerGroup);
+              } catch (Throwable e) {
+                LOG.warn("error occured when get consumer's last offset." , e);
+                // fall back to partition's last offset
+                consumer.assign(Arrays.asList(topicPartition));
+                consumer.seekToEnd(Collections.singletonList(topicPartition));
+                lastOffset = consumer.position(topicPartition) -1;
+              }
+              lastOffsets.put(topicPartition, lastOffset);
             }
-            lastOffsets.put(topicPartition, lastOffset);
+            long startOffset = offsetInfo.getValue();
+            String startKey = Bytes.toString(region.getStartKey());
+            String endKey = Bytes.toString(region.getEndKey());
+            // taskName like : topic__partition__startOffset__endOffset__regionName--startKey--endKey
+            totalRecords += (lastOffsets.get(topicPartition) - startOffset);
+            StringBuilder taskName = new StringBuilder(kafkaTopic).append(SplitLogTask.KAFKA_TASK_SPLITER)
+              .append(offsetInfo.getKey()).append(SplitLogTask.KAFKA_TASK_SPLITER)
+              .append(startOffset)
+              .append(SplitLogTask.KAFKA_TASK_SPLITER).append(lastOffsets.get(topicPartition))
+              .append(SplitLogTask.KAFKA_TASK_SPLITER).append(region.getEncodedName()).append(SplitLogTask.REGION_ROWKEY_SPLITER)
+              .append("".equals(startKey) ? "null" : startKey).append(SplitLogTask.REGION_ROWKEY_SPLITER)
+              .append("".equals(endKey) ? "null" : endKey);
+            if (!enqueueSplitTask(taskName.toString(), batch)) {
+              LOG.info("enqueued split task : " + taskName);
+            }
           }
-          long startOffset = offsetInfo.getValue();
-          String startKey = Bytes.toString(region.getStartKey());
-          String endKey = Bytes.toString(region.getEndKey());
-          // taskName like : topic_partition_startOffset_endOffset_regionName-startKey-endKey
-          totalRecords += (lastOffsets.get(topicPartition) - startOffset);
-          StringBuilder taskName = new StringBuilder(kafkaTopic).append("_").append(offsetInfo.getKey()).append("_")
-            .append(startOffset)
-            .append("_").append(lastOffsets.get(topicPartition))
-            .append("_").append(region.getEncodedName()).append("-")
-            .append("".equals(startKey) ? "null" : startKey).append("-")
-            .append("".equals(endKey) ? "null" : endKey);
-        if (!enqueueSplitTask(taskName.toString(), batch)) {
-            throw new IOException("duplicate log split scheduled for " + taskName);
-          }
-          LOG.info("enqueued split task : " + taskName);
+        }
+        LOG.info("total replay kafka records : " + totalRecords);
+        genSplitTaskSuccess = true;
+        break;
+      } catch (Throwable t) {
+        LOG.warn("failed when generate log split task, retry num = " + retry, t);
+        retry++;
+        try {
+          Thread.sleep(ConnectionUtils.getPauseTime(100, retry));
+        } catch (InterruptedException e) {
+          LOG.error("Giving up generate log split task", e);
         }
       }
-      LOG.info("total replay kafka records : " + totalRecords);
     }
-
+    if (!genSplitTaskSuccess) {
+      throw new IOException("failed when generate log split task.");
+    }
     waitForSplittingCompletion(batch, status);
 
     if (batch.done != batch.installed) {
@@ -146,7 +171,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
     }
     SplitLogCounters.tot_mgr_log_split_batch_success.addAndGet(regionSize);
     String msg = "finished kafka recovering with " + regionSize + " regions in "
-        + (EnvironmentEdgeManager.currentTime() - t) + "ms";
+        + (EnvironmentEdgeManager.currentTime() - time) + "ms";
     status.markComplete(msg);
     LOG.info(msg);
   }
@@ -154,9 +179,9 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
   private void deleteVoliatePartition(String taskName) {
     if (masterService.getZooKeeper() != null) {
       try {
-        String[] taskInfo = taskName.split("_");
+        String[] taskInfo = taskName.split(SplitLogTask.KAFKA_TASK_SPLITER);
         assert(taskInfo.length == SplitLogTask.KAFKA_TASK_FIELD_LEN);
-        String[] regionInfo = taskInfo[4].split("-"); // regionName-startKey-endKey
+        String[] regionInfo = taskInfo[4].split(SplitLogTask.REGION_ROWKEY_SPLITER); // regionName-startKey-endKey
         assert(regionInfo.length == 3);
         RegionStates regionStates = masterService.getAssignmentManager().getRegionStates();
         String table = regionStates.getRegionState(regionInfo[0]).getRegion().getTable().getNameAsString();
@@ -215,7 +240,7 @@ public class KafkaRecoveryManager extends LogRecoveryManager {
               }
             }
           } else if (!offsets.containsKey(partition)) {
-            long timestamp = System.currentTimeMillis() - 600 * 1000; // 10 minutes before
+            long timestamp = System.currentTimeMillis() - timeDiff; // 10 minutes before
             TopicPartition topicPartition = new TopicPartition(KafkaUtil.getTableTopic(
               region.getTable().getNameAsString()), partition);
             OffsetAndTimestamp offsetForTime = consumer.offsetsForTimes(

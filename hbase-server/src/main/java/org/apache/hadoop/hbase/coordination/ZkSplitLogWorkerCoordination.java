@@ -432,6 +432,10 @@ public class ZkSplitLogWorkerCoordination extends ZooKeeperListener implements
         String taskName = paths.get(idx);
         boolean isNotKafka = SplitLogTask.getTaskType(taskName) != SplitLogTask.Type.KAFKA;
         boolean skipTask = isHdfsWorker ^ isNotKafka;
+        if (skipTask) {
+          LOG.info("don't grap this task, isNotKafka : " + isNotKafka +
+              ", isHdfsWorker : " + isHdfsWorker);
+        }
         if (!skipTask && this.calculateAvailableSplitters(numTasks) > 0) {
           grabTask(ZKUtil.joinZNode(watcher.splitLogZNode, taskName));
         } else {
