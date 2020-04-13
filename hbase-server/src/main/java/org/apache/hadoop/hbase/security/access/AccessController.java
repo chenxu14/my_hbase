@@ -343,8 +343,8 @@ public class AccessController extends BaseMasterAndRegionObserver
               }
             }
           } else if (family.getValue() instanceof List) { // List<KeyValue>
-            List<KeyValue> kvList = (List<KeyValue>)family.getValue();
-            for (KeyValue kv : kvList) {
+            List<Cell> kvList = (List<Cell>)family.getValue();
+            for (Cell kv : kvList) {
               if (!authManager.authorize(user, tableName, family.getKey(),
                       kv.getQualifier(), permRequest)) {
                 return AuthResult.deny(request, "Failed qualifier check", user,
