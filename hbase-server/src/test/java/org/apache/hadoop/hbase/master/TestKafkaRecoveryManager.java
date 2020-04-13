@@ -19,6 +19,8 @@
 package org.apache.hadoop.hbase.master;
 
 import java.io.IOException;
+
+import org.apache.hadoop.hbase.SplitLogTask;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.junit.experimental.categories.Category;
 
@@ -31,6 +33,11 @@ public class TestKafkaRecoveryManager extends TestLogRecoveryManager {
 
   @Override
   protected String getTaskName() {
-    return "topic_partition_0_10_regionName-1-2";
+    return new StringBuilder("topic").append(SplitLogTask.TASK_FIELD_SPLITER)
+        .append("partition").append(SplitLogTask.TASK_FIELD_SPLITER)
+        .append(0).append(SplitLogTask.TASK_FIELD_SPLITER)
+        .append(10).append(SplitLogTask.TASK_FIELD_SPLITER)
+        .append("regionName").append(SplitLogTask.FIELD_INNER_SPLITER)
+        .append(1).append(SplitLogTask.FIELD_INNER_SPLITER).append(2).toString();
   }
 }
