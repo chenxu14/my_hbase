@@ -143,7 +143,7 @@ public abstract class ServerCall<T extends ServerRpcConnection> implements RpcCa
   @edu.umd.cs.findbugs.annotations.SuppressWarnings(value = "IS2_INCONSISTENT_SYNC",
       justification = "Presume the lock on processing request held by caller is protection enough")
   @Override
-  public void releaseResource() {
+  public synchronized void releaseResource() {
     if (this.cellBlockStream != null) {
       // This will return back the BBs which we got from pool.
       this.cellBlockStream.releaseResources();
@@ -223,10 +223,10 @@ public abstract class ServerCall<T extends ServerRpcConnection> implements RpcCa
   @Override
   public void setResponse(Message m, final CellScanner cells,
       Throwable t, String errorMsg) {
-    if (this.isError) return;
-    if (t != null) this.isError = true;
     BufferChain bc = null;
     try {
+      if (this.isError) return;
+      if (t != null) this.isError = true;
       ResponseHeader.Builder headerBuilder = ResponseHeader.newBuilder();
       // Call id.
       headerBuilder.setCallId(this.id);
@@ -284,18 +284,19 @@ public abstract class ServerCall<T extends ServerRpcConnection> implements RpcCa
       }
     } catch (IOException e) {
       RpcServer.LOG.warn("Exception while creating response " + e);
-    }
-    this.response = bc;
-    // Once a response message is created and set to this.response, this Call can be treated as
-    // done. The Responder thread will do the n/w write of this message back to client.
-    if (this.rpcCallback != null) {
-      try {
-        this.rpcCallback.run();
-      } catch (Exception e) {
-        // Don't allow any exception here to kill this handler thread.
-        RpcServer.LOG.warn("Exception while running the Rpc Callback.", e);
+    } finally {
+      // Once a response message is created and set to this.response, this Call can be treated as
+      // done. The Responder thread will do the n/w write of this message back to client.
+      if (this.rpcCallback != null) {
+        try {
+          this.rpcCallback.run();
+        } catch (Exception e) {
+          // Don't allow any exception here to kill this handler thread.
+          RpcServer.LOG.warn("Exception while running the Rpc Callback.", e);
+        }
       }
     }
+    this.response = bc;
   }
 
   static void setExceptionResponse(Throwable t, String errorMsg,

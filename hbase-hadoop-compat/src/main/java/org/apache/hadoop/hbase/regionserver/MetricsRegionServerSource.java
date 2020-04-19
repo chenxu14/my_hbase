@@ -378,4 +378,8 @@ public interface MetricsRegionServerSource extends BaseSource {
   String BYTE_BUFF_ALLOCATOR_TOTAL_BUFFER_COUNT_DESC = "Total buffer count in ByteBuffAllocator";
   String BYTE_BUFF_ALLOCATOR_USED_BUFFER_COUNT = "ByteBuffAllocatorUsedBufferCount";
   String BYTE_BUFF_ALLOCATOR_USED_BUFFER_COUNT_DESC = "Used buffer count in ByteBuffAllocator";
+  String BYTE_BUFF_ALLOCATOR_FREE_BUFFER_COUNT = "ByteBuffAllocatorFreeBufferCount";
+  String BYTE_BUFF_ALLOCATOR_FREE_BUFFER_COUNT_DESC = "Free buffer count in ByteBuffAllocator";
+  String BYTE_BUFF_CELLBLOCK_USED_BUFFER_COUNT = "ByteBuffCellBlockUsedBufferCount";
+  String BYTE_BUFF_CELLBLOCK_USED_BUFFER_COUNT_DESC = "Used buffer count for CellBlock in ByteBuffAllocator";
 }

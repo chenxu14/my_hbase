@@ -120,7 +120,7 @@ public class CallRunner {
         // make the call
         resultPair = this.rpcServer.call(call, this.status);
       } catch (Throwable e) {
-        RpcServer.LOG.debug(Thread.currentThread().getName() + ": " + call.toShortString(), e);
+        RpcServer.LOG.error(Thread.currentThread().getName() + ": " + call.toShortString(), e);
         errorThrowable = e;
         error = StringUtils.stringifyException(e);
         if (e instanceof Error) {
@@ -141,7 +141,7 @@ public class CallRunner {
       CellScanner cells = resultPair != null ? resultPair.getSecond() : null;
       call.setResponse(param, cells, errorThrowable, error);
       call.sendResponseIfReady();
-      sucessful = true;
+      sucessful = (errorThrowable == null);
       this.status.markComplete("Sent response");
       this.status.pause("Waiting for a call");
     } catch (OutOfMemoryError e) {

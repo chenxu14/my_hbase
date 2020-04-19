@@ -80,6 +80,10 @@ public class ByteBufferListOutputStream extends ByteBufferOutputStream {
     return s;
   }
 
+  public int count() {
+    return allBufs == null ? 0 : allBufs.size();
+  }
+
   @Override
   public ByteBuffer getByteBuffer() {
     throw new UnsupportedOperationException("This stream is not backed by a single ByteBuffer");
@@ -110,9 +114,12 @@ public class ByteBufferListOutputStream extends ByteBufferOutputStream {
     } catch (IOException e) {
       LOG.debug(e);
     }
-    // Return back all the BBs to pool
-    for (ByteBuff buf : this.allBufs) {
-      buf.release();
+    if (allBufs != null) {
+      allocator.incCellBlockUsed(allBufs.size() * -1);
+      // Return back all the BBs to pool
+      for (ByteBuff buf : this.allBufs) {
+        buf.release();
+      }
     }
     this.allBufs = null;
     this.curBuf = null;

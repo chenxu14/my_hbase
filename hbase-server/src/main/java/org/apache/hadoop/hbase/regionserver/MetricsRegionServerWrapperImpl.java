@@ -25,20 +25,20 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.CompatibilitySingletonFactory;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HDFSBlocksDistribution;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.ServerName;
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.io.ByteBuffAllocator;
 import org.apache.hadoop.hbase.io.hfile.BlockCache;
 import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.CacheStats;
 import org.apache.hadoop.hbase.mob.MobCacheConfig;
 import org.apache.hadoop.hbase.mob.MobFileCache;
-import org.apache.hadoop.hbase.wal.WALProvider;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
+import org.apache.hadoop.hbase.wal.WALProvider;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 import org.apache.hadoop.metrics2.MetricsExecutor;
 
@@ -756,5 +756,15 @@ class MetricsRegionServerWrapperImpl
   @Override
   public long getByteBuffAllocatorUsedBufferCount() {
     return this.allocator.getUsedBufferCount();
+  }
+
+  @Override
+  public long getByteBuffAllocatorFreeBufferCount() {
+    return this.allocator.getFreeBufferCount();
+  }
+
+  @Override
+  public long getCellBlockUsedBufferCount() {
+    return this.allocator.getCellBlockUsed();
   }
 }

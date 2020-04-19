@@ -127,6 +127,8 @@ public class ByteBuffAllocator {
   private final int bufSize;
   private final int maxBufCount;
   private final AtomicInteger usedBufCount = new AtomicInteger(0);
+  private final LongAdder cellBlockUsed = new LongAdder();
+  private final LongAdder freeCount = new LongAdder();
 
   private boolean maxPoolSizeInfoLevelLogged = false;
 
@@ -227,13 +229,8 @@ public class ByteBuffAllocator {
     return this.usedBufCount.intValue();
   }
 
-  /**
-   * The {@link ConcurrentLinkedQueue#size()} is O(N) complexity and time-consuming, so DO NOT use
-   * the method except in UT.
-   */
-  @VisibleForTesting
   public int getFreeBufferCount() {
-    return this.buffers.size();
+    return this.freeCount.intValue();
   }
 
   public int getTotalBufferCount() {
@@ -362,7 +359,9 @@ public class ByteBuffAllocator {
         }
       }
     }
+    this.freeCount.reset();
     this.usedBufCount.set(0);
+    this.cellBlockUsed.reset();
     this.maxPoolSizeInfoLevelLogged = false;
     this.poolAllocationBytes.reset();
     this.heapAllocationBytes.reset();
@@ -381,6 +380,7 @@ public class ByteBuffAllocator {
     if (bb != null) {
       // To reset the limit to capacity and position to 0, must clear here.
       bb.clear();
+      freeCount.decrement();
       poolAllocationBytes.add(bufSize);
       return bb;
     }
@@ -413,5 +413,14 @@ public class ByteBuffAllocator {
       return;
     }
     buffers.offer(buf);
+    this.freeCount.increment();
+  }
+
+  public void incCellBlockUsed(int num) {
+    cellBlockUsed.add(num);
+  }
+
+  public long getCellBlockUsed() {
+    return cellBlockUsed.sum();
   }
 }

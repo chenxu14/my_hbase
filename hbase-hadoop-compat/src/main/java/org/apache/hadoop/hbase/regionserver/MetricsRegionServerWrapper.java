@@ -364,4 +364,8 @@ public interface MetricsRegionServerWrapper {
   long getByteBuffAllocatorTotalBufferCount();
 
   long getByteBuffAllocatorUsedBufferCount();
+
+  long getByteBuffAllocatorFreeBufferCount();
+
+  long getCellBlockUsedBufferCount();
 }

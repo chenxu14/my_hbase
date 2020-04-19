@@ -106,6 +106,16 @@ public class MetricsRegionServerWrapperStub implements MetricsRegionServerWrappe
   }
 
   @Override
+  public long getByteBuffAllocatorFreeBufferCount() {
+    return 0;
+  }
+
+  @Override
+  public long getCellBlockUsedBufferCount() {
+    return 0;
+  }
+
+  @Override
   public long getReadRequestsCount() {
     return 997;
   }

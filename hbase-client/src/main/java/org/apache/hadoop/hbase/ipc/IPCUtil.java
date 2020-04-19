@@ -172,6 +172,7 @@ public class IPCUtil {
     }
     ByteBufferListOutputStream bbos = new ByteBufferListOutputStream(allocator);
     encodeCellsTo(bbos, cellScanner, codec, compressor);
+    allocator.incCellBlockUsed(bbos.count());
     if (bbos.size() == 0) {
       bbos.releaseResources();
       return null;

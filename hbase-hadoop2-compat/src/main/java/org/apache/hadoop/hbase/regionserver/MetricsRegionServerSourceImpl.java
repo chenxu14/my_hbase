@@ -365,7 +365,13 @@ public class MetricsRegionServerSourceImpl
                 rsWrap.getByteBuffAllocatorTotalBufferCount())
             .addGauge(Interns.info(BYTE_BUFF_ALLOCATOR_USED_BUFFER_COUNT,
                 BYTE_BUFF_ALLOCATOR_USED_BUFFER_COUNT_DESC),
-                rsWrap.getByteBuffAllocatorUsedBufferCount());
+                rsWrap.getByteBuffAllocatorUsedBufferCount())
+            .addGauge(Interns.info(BYTE_BUFF_ALLOCATOR_FREE_BUFFER_COUNT,
+                BYTE_BUFF_ALLOCATOR_FREE_BUFFER_COUNT_DESC),
+                rsWrap.getByteBuffAllocatorFreeBufferCount())
+            .addGauge(Interns.info(BYTE_BUFF_CELLBLOCK_USED_BUFFER_COUNT,
+                BYTE_BUFF_CELLBLOCK_USED_BUFFER_COUNT_DESC),
+                rsWrap.getCellBlockUsedBufferCount());
     }
 
     metricsRegistry.snapshot(mrb, all);

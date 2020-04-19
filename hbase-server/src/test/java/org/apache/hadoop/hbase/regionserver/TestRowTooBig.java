@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.RowTooBigException;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.AfterClass;
@@ -33,7 +34,7 @@ import org.junit.experimental.categories.Category;
 import java.io.IOException;
 
 /**
- * Test case to check HRS throws {@link RowTooBigException}
+ * Test case to check HRS throws {@link org.apache.hadoop.hbase.client.RowTooBigException}
  * when row size exceeds configured limits.
  */
 @Category(MediumTests.class)
